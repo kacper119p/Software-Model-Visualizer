@@ -1,6 +1,5 @@
 #ifndef SOFTWARE_MODEL_VISUALIZER_WINDOW_H
 #define SOFTWARE_MODEL_VISUALIZER_WINDOW_H
-#include <stdbool.h>
 #include <stdint.h>
 #include <windows.h>
 
