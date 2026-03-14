@@ -6,7 +6,7 @@ int main(void) {
   Window* window = createWindow();
 
   while (!window->ShouldClose) {
-    PeekWindowMessages(window);
+    peekWindowMessages(window);
     if (window->Framebuffer.ColorBuffer) {
       uint32_t* pixel = (uint32_t*)window->Framebuffer.ColorBuffer;
       for (int32_t i = 0;

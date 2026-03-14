@@ -4,24 +4,24 @@
 #include <stdint.h>
 #include <windows.h>
 
-struct Framebuffer {
+typedef struct Framebuffer {
   void* ColorBuffer;
   float* DepthBuffer;
   int32_t Width;
   int32_t Height;
   BITMAPINFO BitmapInfo;
-} typedef Framebuffer;
+} Framebuffer;
 
-struct Window {
+typedef struct Window {
   Framebuffer Framebuffer;
   HDC DeviceContext;
   HWND WindowHandle;
   bool ShouldClose;
-} typedef Window;
+} Window;
 
 void presentWindow(const Window* Window);
 Window* createWindow();
 void destroyWindow(Window* Window);
-void PeekWindowMessages(Window* Window);
+void peekWindowMessages(Window* Window);
 
 #endif // SOFTWARE_MODEL_VISUALIZER_WINDOW_H

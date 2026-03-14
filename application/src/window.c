@@ -45,7 +45,7 @@ static LRESULT CALLBACK windowProcedure(HWND WindowHandle, const UINT Message,
   switch (Message) {
   case WM_CREATE: {
     const CREATESTRUCT* createStruct = (CREATESTRUCT*)LParam;
-    Window* windowPtr = (Window*)createStruct->lpCreateParams;
+    Window* windowPtr = createStruct->lpCreateParams;
 
     SetWindowLongPtr(WindowHandle, GWLP_USERDATA, (LONG_PTR)windowPtr);
     return 0;
@@ -128,7 +128,7 @@ void destroyWindow(Window* Window) {
   }
   free(Window);
 }
-void PeekWindowMessages(Window* Window) {
+void peekWindowMessages(Window* Window) {
   MSG message;
   while (PeekMessage(&message, NULL, 0, 0, PM_REMOVE)) {
     if (message.message == WM_QUIT) {
