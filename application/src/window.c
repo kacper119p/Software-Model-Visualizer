@@ -128,3 +128,13 @@ void destroyWindow(Window* Window) {
   }
   free(Window);
 }
+void PeekWindowMessages(Window* Window) {
+  MSG message;
+  while (PeekMessage(&message, NULL, 0, 0, PM_REMOVE)) {
+    if (message.message == WM_QUIT) {
+      Window->ShouldClose = true;
+    }
+    TranslateMessage(&message);
+    DispatchMessage(&message);
+  }
+}

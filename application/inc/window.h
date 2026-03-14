@@ -22,5 +22,6 @@ struct Window {
 void presentWindow(const Window* Window);
 Window* createWindow();
 void destroyWindow(Window* Window);
+void PeekWindowMessages(Window* Window);
 
 #endif // SOFTWARE_MODEL_VISUALIZER_WINDOW_H
