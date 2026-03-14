@@ -1,12 +1,16 @@
 #include "window.h"
 
 #include <assert.h>
-#include <stdbool.h>
 #include <stdint.h>
 #include <windows.h>
 
 static void resizeFramebuffer(Framebuffer* Framebuffer, int32_t const Width,
                               int32_t const Height) {
+
+  if (Framebuffer->Width == Width && Framebuffer->Height == Height) {
+    return;
+  }
+
   if (Framebuffer->ColorBuffer) {
     VirtualFree(Framebuffer->ColorBuffer, 0, MEM_RELEASE);
   }
@@ -89,21 +93,23 @@ Window* createWindow() {
   windowClass.style = CS_HREDRAW | CS_VREDRAW;
   windowClass.lpfnWndProc = windowProcedure;
   windowClass.hInstance = instance;
-  windowClass.lpszClassName = "SoftwareRasterizerClass";
+  windowClass.lpszClassName = "WindowClass";
+  windowClass.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
+  windowClass.hCursor = LoadCursor(NULL, IDC_ARROW);
 
   const ATOM registerClassResult = RegisterClassEx(&windowClass);
   assert(registerClassResult);
 
-  Window* window = malloc(sizeof(Window));
+  Window* window = calloc(1, sizeof(Window));
   assert(window);
 
-  const int32_t width = 640;
-  const int32_t height = 480;
+  constexpr int32_t width = 640;
+  constexpr int32_t height = 480;
 
   HWND windowHandle = CreateWindowEx(
-      0, windowClass.lpszClassName, "Software Rasterizer",
-      WS_OVERLAPPEDWINDOW | WS_VISIBLE, CW_USEDEFAULT, CW_USEDEFAULT, width,
-      height, NULL, NULL, instance, window);
+      WS_EX_LEFT, windowClass.lpszClassName, "Software Rasterizer",
+      WS_TILEDWINDOW | WS_VISIBLE, CW_USEDEFAULT, CW_USEDEFAULT, width, height,
+      NULL, NULL, instance, window);
 
   assert(windowHandle);
 
