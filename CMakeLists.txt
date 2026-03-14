@@ -6,5 +6,4 @@ include(global_settings)
 include(CPM)
 
 add_subdirectory(third_party)
-add_subdirectory(rasterizer)
 add_subdirectory(application)

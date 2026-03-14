@@ -1,0 +1,130 @@
+#include "window.h"
+
+#include <assert.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <windows.h>
+
+static void resizeFramebuffer(Framebuffer* Framebuffer, int32_t const Width,
+                              int32_t const Height) {
+  if (Framebuffer->ColorBuffer) {
+    VirtualFree(Framebuffer->ColorBuffer, 0, MEM_RELEASE);
+  }
+  if (Framebuffer->DepthBuffer) {
+    VirtualFree(Framebuffer->DepthBuffer, 0, MEM_RELEASE);
+  }
+
+  Framebuffer->Width = Width;
+  Framebuffer->Height = Height;
+
+  Framebuffer->BitmapInfo.bmiHeader.biSize =
+      sizeof(Framebuffer->BitmapInfo.bmiHeader);
+  Framebuffer->BitmapInfo.bmiHeader.biWidth = Framebuffer->Width;
+  Framebuffer->BitmapInfo.bmiHeader.biHeight = -Framebuffer->Height;
+  Framebuffer->BitmapInfo.bmiHeader.biPlanes = 1;
+  Framebuffer->BitmapInfo.bmiHeader.biBitCount = 32;
+  Framebuffer->BitmapInfo.bmiHeader.biCompression = BI_RGB;
+
+  const size_t bitmapMemorySize =
+      Framebuffer->Width * Framebuffer->Height * sizeof(uint32_t);
+  Framebuffer->ColorBuffer = VirtualAlloc(
+      NULL, bitmapMemorySize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+  assert(Framebuffer->ColorBuffer);
+
+  const size_t depthBufferMemorySize =
+      Framebuffer->Width * Framebuffer->Height * sizeof(float);
+  Framebuffer->DepthBuffer = VirtualAlloc(
+      NULL, depthBufferMemorySize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+  assert(Framebuffer->DepthBuffer);
+}
+
+static LRESULT CALLBACK windowProcedure(HWND WindowHandle, const UINT Message,
+                                        const WPARAM WParam,
+                                        const LPARAM LParam) {
+
+  switch (Message) {
+  case WM_CREATE: {
+    const CREATESTRUCT* createStruct = (CREATESTRUCT*)LParam;
+    Window* windowPtr = (Window*)createStruct->lpCreateParams;
+
+    SetWindowLongPtrA(WindowHandle, GWLP_USERDATA, (LONG_PTR)windowPtr);
+    return 0;
+  }
+  case WM_SIZE: {
+    RECT clientRect;
+    GetClientRect(WindowHandle, &clientRect);
+
+    const int32_t width = clientRect.right - clientRect.left;
+    const int32_t height = clientRect.bottom - clientRect.top;
+    Window* windowPtr = (Window*)GetWindowLongPtrA(WindowHandle, GWLP_USERDATA);
+    resizeFramebuffer(&windowPtr->Framebuffer, width, height);
+
+    return 0;
+  }
+  case WM_CLOSE:
+  case WM_DESTROY: {
+    Window* windowPtr = (Window*)GetWindowLongPtrA(WindowHandle, GWLP_USERDATA);
+    windowPtr->ShouldClose = true;
+    PostQuitMessage(0);
+    return 0;
+  }
+  default: {
+    return DefWindowProcA(WindowHandle, Message, WParam, LParam);
+  }
+  }
+}
+
+void presentWindow(const Window* const Window) {
+  StretchDIBits(Window->DeviceContext, 0, 0, Window->Framebuffer.Width,
+                Window->Framebuffer.Width, 0, 0, Window->Framebuffer.Width,
+                Window->Framebuffer.Height, Window->Framebuffer.ColorBuffer,
+                &Window->Framebuffer.BitmapInfo, DIB_RGB_COLORS, SRCCOPY);
+}
+
+Window* createWindow() {
+  HINSTANCE instance = GetModuleHandle(NULL);
+  WNDCLASSEXA windowClass = {0};
+
+  windowClass.cbSize = sizeof(WNDCLASSEXA);
+  windowClass.style = CS_HREDRAW | CS_VREDRAW;
+  windowClass.lpfnWndProc = windowProcedure;
+  windowClass.hInstance = instance;
+  windowClass.lpszClassName = "SoftwareRasterizerClass";
+
+  const ATOM registerClassResult = RegisterClassExA(&windowClass);
+  assert(registerClassResult);
+
+  Window* window = malloc(sizeof(Window));
+  assert(window);
+
+  const int32_t width = 640;
+  const int32_t height = 480;
+
+  HWND windowHandle = CreateWindowExA(
+      0, windowClass.lpszClassName, "Software Rasterizer",
+      WS_OVERLAPPEDWINDOW | WS_VISIBLE, CW_USEDEFAULT, CW_USEDEFAULT, width,
+      height, NULL, NULL, instance, window);
+
+  assert(windowHandle);
+
+  window->ShouldClose = false;
+  window->DeviceContext = GetDC(windowHandle);
+  window->WindowHandle = windowHandle;
+  resizeFramebuffer(&window->Framebuffer, width, height);
+
+  return window;
+}
+
+void destroyWindow(Window* Window) {
+  if (Window->Framebuffer.ColorBuffer) {
+    VirtualFree(Window->Framebuffer.ColorBuffer, 0, MEM_RELEASE);
+  }
+  if (Window->Framebuffer.DepthBuffer) {
+    VirtualFree(Window->Framebuffer.DepthBuffer, 0, MEM_RELEASE);
+  }
+  if (Window->WindowHandle && Window->DeviceContext) {
+    ReleaseDC(Window->WindowHandle, Window->DeviceContext);
+    DestroyWindow(Window->WindowHandle);
+  }
+  free(Window);
+}
