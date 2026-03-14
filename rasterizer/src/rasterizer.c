@@ -2,6 +2,4 @@
 
 #include <stdio.h>
 
-void test() {
-  printf("Hello, World!\n");
-}
+void test() { printf("Hello, World!\n"); }
