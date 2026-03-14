@@ -47,7 +47,7 @@ static LRESULT CALLBACK windowProcedure(HWND WindowHandle, const UINT Message,
     const CREATESTRUCT* createStruct = (CREATESTRUCT*)LParam;
     Window* windowPtr = (Window*)createStruct->lpCreateParams;
 
-    SetWindowLongPtrA(WindowHandle, GWLP_USERDATA, (LONG_PTR)windowPtr);
+    SetWindowLongPtr(WindowHandle, GWLP_USERDATA, (LONG_PTR)windowPtr);
     return 0;
   }
   case WM_SIZE: {
@@ -56,20 +56,20 @@ static LRESULT CALLBACK windowProcedure(HWND WindowHandle, const UINT Message,
 
     const int32_t width = clientRect.right - clientRect.left;
     const int32_t height = clientRect.bottom - clientRect.top;
-    Window* windowPtr = (Window*)GetWindowLongPtrA(WindowHandle, GWLP_USERDATA);
+    Window* windowPtr = (Window*)GetWindowLongPtr(WindowHandle, GWLP_USERDATA);
     resizeFramebuffer(&windowPtr->Framebuffer, width, height);
 
     return 0;
   }
   case WM_CLOSE:
   case WM_DESTROY: {
-    Window* windowPtr = (Window*)GetWindowLongPtrA(WindowHandle, GWLP_USERDATA);
+    Window* windowPtr = (Window*)GetWindowLongPtr(WindowHandle, GWLP_USERDATA);
     windowPtr->ShouldClose = true;
     PostQuitMessage(0);
     return 0;
   }
   default: {
-    return DefWindowProcA(WindowHandle, Message, WParam, LParam);
+    return DefWindowProc(WindowHandle, Message, WParam, LParam);
   }
   }
 }
@@ -83,15 +83,15 @@ void presentWindow(const Window* const Window) {
 
 Window* createWindow() {
   HINSTANCE instance = GetModuleHandle(NULL);
-  WNDCLASSEXA windowClass = {0};
+  WNDCLASSEX windowClass = {0};
 
-  windowClass.cbSize = sizeof(WNDCLASSEXA);
+  windowClass.cbSize = sizeof(WNDCLASSEX);
   windowClass.style = CS_HREDRAW | CS_VREDRAW;
   windowClass.lpfnWndProc = windowProcedure;
   windowClass.hInstance = instance;
   windowClass.lpszClassName = "SoftwareRasterizerClass";
 
-  const ATOM registerClassResult = RegisterClassExA(&windowClass);
+  const ATOM registerClassResult = RegisterClassEx(&windowClass);
   assert(registerClassResult);
 
   Window* window = malloc(sizeof(Window));
@@ -100,7 +100,7 @@ Window* createWindow() {
   const int32_t width = 640;
   const int32_t height = 480;
 
-  HWND windowHandle = CreateWindowExA(
+  HWND windowHandle = CreateWindowEx(
       0, windowClass.lpszClassName, "Software Rasterizer",
       WS_OVERLAPPEDWINDOW | WS_VISIBLE, CW_USEDEFAULT, CW_USEDEFAULT, width,
       height, NULL, NULL, instance, window);

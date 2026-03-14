@@ -9,7 +9,7 @@ int main(void) {
   Window* window = createWindow();
   while (!window->ShouldClose) {
     MSG message;
-    while (PeekMessageA(&message, NULL, 0, 0, PM_REMOVE)) {
+    while (PeekMessage(&message, NULL, 0, 0, PM_REMOVE)) {
       if (message.message == WM_QUIT) {
         window->ShouldClose = true;
       }
