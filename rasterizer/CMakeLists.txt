@@ -10,3 +10,5 @@ source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${HEADER_FILES})
 
 add_library(${LIBRARY_NAME} STATIC ${SOURCE_FILES})
 target_include_directories(${LIBRARY_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/inc)
+
+target_link_libraries(${LIBRARY_NAME} PUBLIC cglm)

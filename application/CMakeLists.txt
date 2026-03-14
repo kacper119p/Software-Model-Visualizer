@@ -10,3 +10,5 @@ add_executable(${PROJECT_NAME} ${SOURCE_FILES} main.c)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE rasterizer)
 
+target_link_libraries(${PROJECT_NAME} PRIVATE cglm)
+
