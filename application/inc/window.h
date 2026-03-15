@@ -4,7 +4,7 @@
 #include <windows.h>
 
 typedef struct Framebuffer {
-  void* ColorBuffer;
+  uint32_t* ColorBuffer;
   float* DepthBuffer;
   int32_t Width;
   int32_t Height;
