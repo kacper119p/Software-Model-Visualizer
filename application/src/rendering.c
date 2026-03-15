@@ -32,58 +32,60 @@ void drawPixel(const Framebuffer* const Framebuffer, const uint32_t X,
   if (X >= Framebuffer->Width || Y >= Framebuffer->Height) {
     return;
   }
-
-  uint32_t* ColorPixel =
-      (uint32_t*)Framebuffer->ColorBuffer + (Y * Framebuffer->Width) + X;
-  *ColorPixel = Color;
-
-  float* DepthPixel =
-      (float*)Framebuffer->DepthBuffer + (Y * Framebuffer->Width) + X;
-  *DepthPixel = Depth;
+  const size_t pixelIndex = Y * Framebuffer->Width + X;
+  Framebuffer->ColorBuffer[pixelIndex] = Color;
+  Framebuffer->DepthBuffer[pixelIndex] = Depth;
 }
 
 void drawTriangle(const Framebuffer* Framebuffer, vec3 V0, vec3 V1, vec3 V2,
                   const uint32_t Color) {
-  const ivec2 PixelV0 = {(int32_t)(V0[0] * Framebuffer->Width),
+  const ivec2 pixelV0 = {(int32_t)(V0[0] * Framebuffer->Width),
                          (int32_t)(V0[1] * Framebuffer->Height)};
-  const ivec2 PixelV1 = {(int32_t)(V1[0] * Framebuffer->Width),
+  const ivec2 pixelV1 = {(int32_t)(V1[0] * Framebuffer->Width),
                          (int32_t)(V1[1] * Framebuffer->Height)};
-  const ivec2 PixelV2 = {(int32_t)(V2[0] * Framebuffer->Width),
+  const ivec2 pixelV2 = {(int32_t)(V2[0] * Framebuffer->Width),
                          (int32_t)(V2[1] * Framebuffer->Height)};
 
-  const float Area = edgeFunction(PixelV0, PixelV1, PixelV2);
+  const float area = edgeFunction(pixelV0, pixelV1, pixelV2);
 
-  if (Area <= 0.0f) {
+  if (area <= 0.0f) {
     return;
   }
 
-  const int32_t MinX = max(0, min(PixelV0[0], min(PixelV1[0], PixelV2[0])));
-  const int32_t MinY = max(0, min(PixelV0[1], min(PixelV1[1], PixelV2[1])));
-  const int32_t MaxX = min((int32_t)Framebuffer->Width,
-                           max(PixelV0[0], max(PixelV1[0], PixelV2[0])));
-  const int32_t MaxY = min((int32_t)Framebuffer->Height,
-                           max(PixelV0[1], max(PixelV1[1], PixelV2[1])));
+  const int32_t minX = max(0, min(pixelV0[0], min(pixelV1[0], pixelV2[0])));
+  const int32_t minY = max(0, min(pixelV0[1], min(pixelV1[1], pixelV2[1])));
+  const int32_t maxX = min((int32_t)Framebuffer->Width,
+                           max(pixelV0[0], max(pixelV1[0], pixelV2[0])));
+  const int32_t maxY = min((int32_t)Framebuffer->Height,
+                           max(pixelV0[1], max(pixelV1[1], pixelV2[1])));
 
-  for (int32_t Y = MinY; Y < MaxY; ++Y) {
-    for (int32_t X = MinX; X < MaxX; ++X) {
-      const ivec2 Pixel = {X, Y};
-      float W0 = edgeFunction(PixelV1, PixelV2, Pixel);
-      float W1 = edgeFunction(PixelV2, PixelV0, Pixel);
-      float W2 = edgeFunction(PixelV0, PixelV1, Pixel);
+  for (int32_t y = minY; y < maxY; ++y) {
+    for (int32_t x = minX; x < maxX; ++x) {
+      const ivec2 pixel = {x, y};
+      float w0 = edgeFunction(pixelV1, pixelV2, pixel);
+      if (w0 < 0.0f) {
+        continue;
+      }
+      float w1 = edgeFunction(pixelV2, pixelV0, pixel);
+      if (w1 < 0.0f) {
+        continue;
+      }
+      float w2 = edgeFunction(pixelV0, pixelV1, pixel);
+      if (w2 < 0.0f) {
+        continue;
+      }
 
-      if (W0 >= 0.0f && W1 >= 0.0f && W2 >= 0.0f) {
-        W0 /= Area;
-        W1 /= Area;
-        W2 /= Area;
+      w0 /= area;
+      w1 /= area;
+      w2 /= area;
 
-        const float Depth = W0 * V0[2] + W1 * V1[2] + W2 * V2[2];
+      const float depth = w0 * V0[2] + w1 * V1[2] + w2 * V2[2];
 
-        const size_t PixelIndex = Y * Framebuffer->Width + X;
+      const size_t pixelIndex = y * Framebuffer->Width + x;
 
-        if (Depth < Framebuffer->DepthBuffer[PixelIndex]) {
-          Framebuffer->DepthBuffer[PixelIndex] = Depth;
-          Framebuffer->ColorBuffer[PixelIndex] = Color;
-        }
+      if (depth < Framebuffer->DepthBuffer[pixelIndex]) {
+        Framebuffer->DepthBuffer[pixelIndex] = depth;
+        Framebuffer->ColorBuffer[pixelIndex] = Color;
       }
     }
   }
