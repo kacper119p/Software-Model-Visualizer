@@ -19,7 +19,7 @@ typedef struct Window {
 } Window;
 
 void presentWindow(const Window* Window);
-Window* createWindow();
+[[nodiscard]] Window* createWindow();
 void destroyWindow(Window* Window);
 void peekWindowMessages(Window* Window);
 
