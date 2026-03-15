@@ -138,6 +138,7 @@ void destroyWindow(Window* Window) {
   }
   free(Window);
 }
+
 void peekWindowMessages(Window* Window) {
   MSG message;
   while (PeekMessage(&message, NULL, 0, 0, PM_REMOVE)) {

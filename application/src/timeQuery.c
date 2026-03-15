@@ -6,6 +6,7 @@ void initializeTimeQuery(TimeQuery* TimeQuery) {
   QueryPerformanceFrequency(&TimeQuery->Frequency);
   QueryPerformanceCounter(&TimeQuery->Start);
 }
+
 float getElapsedTime(const TimeQuery* const TimeQuery) {
   LARGE_INTEGER end;
   QueryPerformanceCounter(&end);
