@@ -1,4 +1,4 @@
-#include "../inc/rasterizer.h"
+#include "rasterizer.h"
 
 #include <stdio.h>
 
