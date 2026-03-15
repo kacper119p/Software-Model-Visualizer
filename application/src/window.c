@@ -4,8 +4,8 @@
 #include <stdint.h>
 #include <windows.h>
 
-static void resizeFramebuffer(Framebuffer* Framebuffer, int32_t const Width,
-                              int32_t const Height) {
+static void resizeFramebuffer(Framebuffer* Framebuffer, uint32_t const Width,
+                              uint32_t const Height) {
 
   if (Framebuffer->Width == Width && Framebuffer->Height == Height) {
     return;
@@ -24,7 +24,7 @@ static void resizeFramebuffer(Framebuffer* Framebuffer, int32_t const Width,
   Framebuffer->BitmapInfo.bmiHeader.biSize =
       sizeof(Framebuffer->BitmapInfo.bmiHeader);
   Framebuffer->BitmapInfo.bmiHeader.biWidth = Framebuffer->Width;
-  Framebuffer->BitmapInfo.bmiHeader.biHeight = -Framebuffer->Height;
+  Framebuffer->BitmapInfo.bmiHeader.biHeight = -(int32_t)Framebuffer->Height;
   Framebuffer->BitmapInfo.bmiHeader.biPlanes = 1;
   Framebuffer->BitmapInfo.bmiHeader.biBitCount = 32;
   Framebuffer->BitmapInfo.bmiHeader.biCompression = BI_RGB;
@@ -58,8 +58,8 @@ static LRESULT CALLBACK windowProcedure(HWND WindowHandle, const UINT Message,
     RECT clientRect;
     GetClientRect(WindowHandle, &clientRect);
 
-    const int32_t width = clientRect.right - clientRect.left;
-    const int32_t height = clientRect.bottom - clientRect.top;
+    const uint32_t width = clientRect.right - clientRect.left;
+    const uint32_t height = clientRect.bottom - clientRect.top;
     Window* windowPtr = (Window*)GetWindowLongPtr(WindowHandle, GWLP_USERDATA);
     resizeFramebuffer(&windowPtr->Framebuffer, width, height);
 
@@ -80,7 +80,7 @@ static LRESULT CALLBACK windowProcedure(HWND WindowHandle, const UINT Message,
 
 void presentWindow(const Window* const Window) {
   StretchDIBits(Window->DeviceContext, 0, 0, Window->Framebuffer.Width,
-                Window->Framebuffer.Width, 0, 0, Window->Framebuffer.Width,
+                Window->Framebuffer.Height, 0, 0, Window->Framebuffer.Width,
                 Window->Framebuffer.Height, Window->Framebuffer.ColorBuffer,
                 &Window->Framebuffer.BitmapInfo, DIB_RGB_COLORS, SRCCOPY);
 }
@@ -97,8 +97,12 @@ Window* createWindow() {
   windowClass.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
   windowClass.hCursor = LoadCursor(NULL, IDC_ARROW);
 
+#if NDEBUG
+  RegisterClassEx(&windowClass);
+#else
   const ATOM registerClassResult = RegisterClassEx(&windowClass);
   assert(registerClassResult);
+#endif
 
   Window* window = calloc(1, sizeof(Window));
   assert(window);
