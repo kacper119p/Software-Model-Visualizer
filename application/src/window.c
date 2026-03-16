@@ -49,9 +49,12 @@ static LRESULT CALLBACK windowProcedure(HWND WindowHandle, const UINT Message,
   switch (Message) {
   case WM_CREATE: {
     const CREATESTRUCT* createStruct = (CREATESTRUCT*)LParam;
-    Window* windowPtr = createStruct->lpCreateParams;
+    Window* window = createStruct->lpCreateParams;
+    window->ShouldClose = false;
+    window->DeviceContext = GetDC(WindowHandle);
+    window->WindowHandle = WindowHandle;
 
-    SetWindowLongPtr(WindowHandle, GWLP_USERDATA, (LONG_PTR)windowPtr);
+    SetWindowLongPtr(WindowHandle, GWLP_USERDATA, (LONG_PTR)window);
     return 0;
   }
   case WM_SIZE: {
@@ -109,18 +112,21 @@ Window* createWindow() {
 
   constexpr int32_t width = 640;
   constexpr int32_t height = 480;
+  constexpr DWORD windowExStyle = WS_EX_LEFT;
+  constexpr DWORD windowStyle = WS_TILEDWINDOW | WS_VISIBLE;
+
+  RECT windowRect = {0, 0, width, height};
+  AdjustWindowRectEx(&windowRect, windowStyle, FALSE, windowExStyle);
+
+  const int32_t windowWidth = windowRect.right - windowRect.left;
+  const int32_t windowHeight = windowRect.bottom - windowRect.top;
 
   HWND windowHandle = CreateWindowEx(
-      WS_EX_LEFT, windowClass.lpszClassName, "Software Rasterizer",
-      WS_TILEDWINDOW | WS_VISIBLE, CW_USEDEFAULT, CW_USEDEFAULT, width, height,
+      windowExStyle, windowClass.lpszClassName, "Software Rasterizer",
+      windowStyle, CW_USEDEFAULT, CW_USEDEFAULT, windowWidth, windowHeight,
       NULL, NULL, instance, window);
 
   assert(windowHandle);
-
-  window->ShouldClose = false;
-  window->DeviceContext = GetDC(windowHandle);
-  window->WindowHandle = windowHandle;
-  resizeFramebuffer(&window->Framebuffer, width, height);
 
   return window;
 }
