@@ -2,6 +2,7 @@
 
 #include <assert.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <windows.h>
 
 static void resizeFramebuffer(Framebuffer* Framebuffer, uint32_t const Width,
@@ -16,6 +17,14 @@ static void resizeFramebuffer(Framebuffer* Framebuffer, uint32_t const Width,
   }
   if (Framebuffer->DepthBuffer) {
     VirtualFree(Framebuffer->DepthBuffer, 0, MEM_RELEASE);
+  }
+
+  if (Width == 0 || Height == 0) {
+    Framebuffer->Width = 0;
+    Framebuffer->Height = 0;
+    Framebuffer->ColorBuffer = nullptr;
+    Framebuffer->DepthBuffer = nullptr;
+    return;
   }
 
   Framebuffer->Width = Width;
@@ -51,7 +60,6 @@ static LRESULT CALLBACK windowProcedure(HWND WindowHandle, const UINT Message,
     const CREATESTRUCT* createStruct = (CREATESTRUCT*)LParam;
     Window* window = createStruct->lpCreateParams;
     window->ShouldClose = false;
-    window->DeviceContext = GetDC(WindowHandle);
     window->WindowHandle = WindowHandle;
 
     SetWindowLongPtr(WindowHandle, GWLP_USERDATA, (LONG_PTR)window);
@@ -82,10 +90,12 @@ static LRESULT CALLBACK windowProcedure(HWND WindowHandle, const UINT Message,
 }
 
 void presentWindow(const Window* const Window) {
-  StretchDIBits(Window->DeviceContext, 0, 0, Window->Framebuffer.Width,
+  HDC deviceContext = GetDC(Window->WindowHandle);
+  StretchDIBits(deviceContext, 0, 0, Window->Framebuffer.Width,
                 Window->Framebuffer.Height, 0, 0, Window->Framebuffer.Width,
                 Window->Framebuffer.Height, Window->Framebuffer.ColorBuffer,
                 &Window->Framebuffer.BitmapInfo, DIB_RGB_COLORS, SRCCOPY);
+  ReleaseDC(Window->WindowHandle, deviceContext);
 }
 
 Window* createWindow() {
@@ -138,8 +148,7 @@ void destroyWindow(Window* Window) {
   if (Window->Framebuffer.DepthBuffer) {
     VirtualFree(Window->Framebuffer.DepthBuffer, 0, MEM_RELEASE);
   }
-  if (Window->WindowHandle && Window->DeviceContext) {
-    ReleaseDC(Window->WindowHandle, Window->DeviceContext);
+  if (Window->WindowHandle) {
     DestroyWindow(Window->WindowHandle);
   }
   free(Window);

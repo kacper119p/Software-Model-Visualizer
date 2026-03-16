@@ -13,7 +13,6 @@ typedef struct Framebuffer {
 
 typedef struct Window {
   Framebuffer Framebuffer;
-  HDC DeviceContext;
   HWND WindowHandle;
   bool ShouldClose;
 } Window;
