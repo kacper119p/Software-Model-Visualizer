@@ -1,10 +1,42 @@
+#include "model.h"
+
+#include <time.h>
+
 #include "rendering.h"
+#include "timeQuery.h"
 #include "window.h"
 
-int main(void) {
+#include <stdio.h>
+
+int main(int argc, char* argv[]) {
+  if (argc != 2) {
+    fprintf(stderr,
+            "Error: Invalid number of arguments.\n"
+            "Usage: %s <file_path>\n",
+            (argc > 0) ? argv[0] : "rasterizer");
+    return EXIT_FAILURE;
+  }
+
+  Model model;
+  LoadModel(argv[1], &model);
+
+  srand(time(nullptr));
+
   Window* window = createWindow();
 
+  TimeQuery timeQuery;
+  initializeTimeQuery(&timeQuery);
+
+  // float* times = calloc(1000, sizeof(float));
+
+  // float previousTime = getElapsedTime(&timeQuery);
+
+  // size_t frameCount = 0;
   while (!window->ShouldClose) {
+    // const float currentTime = getElapsedTime(&timeQuery);
+    // const float deltaTime = currentTime - previousTime;
+    // previousTime = currentTime;
+    // times[frameCount++] = deltaTime;
     peekWindowMessages(window);
     clearColorBuffer(&window->Framebuffer, 0x00FF0070);
     clearDepthBuffer(&window->Framebuffer, 1.0f);
@@ -14,6 +46,14 @@ int main(void) {
     presentWindow(window);
   }
 
+  // float averageTime = 0.0f;
+  // for (size_t i = 0; i < 1000; ++i) {
+  //   averageTime += times[i];
+  // }
+  // printf("averageTime: %f ms\n", averageTime);
+  // free(times);
+
+  DestroyModel(&model);
   destroyWindow(window);
   return 0;
 }

@@ -69,7 +69,7 @@ static uint32_t getRandomColor() {
   return hsvToRgb(hue, 1.0f, 1.0f);
 }
 
-Model* LoadModel(const char* FilePath) {
+bool LoadModel(const char* FilePath, Model* Destination) {
   constexpr cgltf_options options = {0};
   cgltf_data* data = nullptr;
   if (cgltf_parse_file(&options, FilePath, &data) != cgltf_result_success ||
@@ -77,10 +77,11 @@ Model* LoadModel(const char* FilePath) {
     if (data) {
       cgltf_free(data);
     }
-    return nullptr;
+    return false;
   }
 
-  Model* model = calloc(1, sizeof(Model));
+  Destination->VertexCount = 0;
+  Destination->IndexCount = 0;
 
   for (size_t i = 0; i < data->nodes_count; ++i) {
     const cgltf_node* node = &data->nodes[i];
@@ -99,25 +100,25 @@ Model* LoadModel(const char* FilePath) {
       }
 
       if (positionAccessor != nullptr) {
-        model->VertexCount += positionAccessor->count;
+        Destination->VertexCount += positionAccessor->count;
 
         if (primitive->indices != nullptr) {
-          model->VertexCount += primitive->indices->count;
+          Destination->IndexCount += primitive->indices->count;
         } else {
-          model->IndexCount += positionAccessor->count;
+          Destination->IndexCount += positionAccessor->count;
         }
       }
     }
   }
-  if (model->VertexCount == 0) {
+  if (Destination->VertexCount == 0) {
     cgltf_free(data);
-    free(model);
-    return nullptr;
+    return false;
   }
 
-  model->Vertices = calloc(model->VertexCount, sizeof(vec3));
-  model->Indices = calloc(model->IndexCount, sizeof(uint32_t));
-  model->Normals = calloc(model->IndexCount / 3, sizeof(vec3));
+  Destination->Vertices = calloc(Destination->VertexCount, sizeof(vec3));
+  Destination->Indices = calloc(Destination->IndexCount, sizeof(uint32_t));
+  Destination->Normals = calloc(Destination->IndexCount / 3, sizeof(vec3));
+  Destination->Colors = calloc(Destination->IndexCount / 3, sizeof(uint32_t));
 
   size_t vertexOffset = 0;
   size_t indexOffset = 0;
@@ -148,17 +149,15 @@ Model* LoadModel(const char* FilePath) {
       if (primitive->indices != nullptr) {
         const size_t primitiveIndexCount = primitive->indices->count;
         assert(primitiveIndexCount % 3 == 0);
-        for (size_t idx = 0; idx < primitiveIndexCount; idx += 3) {
-          uint32_t indices[3];
-          cgltf_accessor_read_uint(primitive->indices, idx, indices, 1);
-          model->Indices[indexOffset + idx] = indices[0] + vertexOffset;
-          model->Indices[indexOffset + idx + 1] = indices[1] + vertexOffset;
-          model->Indices[indexOffset + idx + 2] = indices[2] + vertexOffset;
+        for (size_t idx = 0; idx < primitiveIndexCount; ++idx) {
+          uint32_t index;
+          cgltf_accessor_read_uint(primitive->indices, idx, &index, 1);
+          Destination->Indices[indexOffset + idx] = index + vertexOffset;
         }
         indexOffset += primitiveIndexCount;
       } else {
         for (uint32_t idx = 0; idx < primitiveVertexCount; ++idx) {
-          model->Indices[indexOffset + idx] = idx + vertexOffset;
+          Destination->Indices[indexOffset + idx] = idx + vertexOffset;
         }
         indexOffset += primitiveVertexCount;
       }
@@ -174,18 +173,18 @@ Model* LoadModel(const char* FilePath) {
     }
   }
 
-  for (size_t i = 0; i < model->IndexCount; i += 3) {
-    const uint32_t index0 = model->Indices[i];
-    const uint32_t index1 = model->Indices[i + 1];
-    const uint32_t index2 = model->Indices[i + 2];
+  for (size_t i = 0; i < Destination->IndexCount; i += 3) {
+    const uint32_t index0 = Destination->Indices[i];
+    const uint32_t index1 = Destination->Indices[i + 1];
+    const uint32_t index2 = Destination->Indices[i + 2];
 
     vec3 v0;
     vec3 v1;
     vec3 v2;
 
-    glm_vec3_copy(model->Vertices[index0], v0);
-    glm_vec3_copy(model->Vertices[index1], v1);
-    glm_vec3_copy(model->Vertices[index2], v2);
+    glm_vec3_copy(Destination->Vertices[index0], v0);
+    glm_vec3_copy(Destination->Vertices[index1], v1);
+    glm_vec3_copy(Destination->Vertices[index2], v2);
 
     vec3 edge1;
     vec3 edge2;
@@ -196,14 +195,20 @@ Model* LoadModel(const char* FilePath) {
     glm_vec3_cross(edge1, edge2, normal);
     glm_vec3_normalize(normal);
 
-    glm_vec3_copy(normal, model->Normals[i / 3]);
+    glm_vec3_copy(normal, Destination->Normals[i / 3]);
   }
 
-  for (size_t i = 0; i < model->IndexCount / 3; ++i) {
-    model->Colors[i] = getRandomColor();
+  for (size_t i = 0; i < Destination->IndexCount / 3; ++i) {
+    Destination->Colors[i] = getRandomColor();
   }
 
   cgltf_free(data);
 
-  return model;
+  return true;
+}
+void DestroyModel(const Model* const Model) {
+  free(Model->Vertices);
+  free(Model->Indices);
+  free(Model->Normals);
+  free(Model->Colors);
 }
