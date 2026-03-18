@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include <windows.h>
 
-typedef struct {
+typedef struct Framebuffer {
   uint32_t* ColorBuffer;
   float* DepthBuffer;
   uint32_t Width;
@@ -11,7 +11,7 @@ typedef struct {
   BITMAPINFO BitmapInfo;
 } Framebuffer;
 
-typedef struct {
+typedef struct Window {
   Framebuffer Framebuffer;
   HWND WindowHandle;
   bool ShouldClose;

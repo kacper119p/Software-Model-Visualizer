@@ -3,7 +3,7 @@
 
 #include <profileapi.h>
 
-typedef struct {
+typedef struct TimeQuery {
   LARGE_INTEGER Frequency;
   LARGE_INTEGER Start;
 } TimeQuery;
