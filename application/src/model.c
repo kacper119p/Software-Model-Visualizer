@@ -1,0 +1,209 @@
+#include "model.h"
+
+#include "cglm/mat4.h"
+#include "cgltf.h"
+
+static uint32_t hsvToRgb(const float Hue, const float Saturation,
+                         const float Value) {
+
+  const float hueQuotient = Hue * (1.0f / 60.0f);
+
+  const float c = Value * Saturation;
+  const float x = c * (1.0f - fabsf(fmodf(hueQuotient, 2.0f) - 1.0f));
+
+  float red;
+  float green;
+  float blue;
+  const uint8_t sector = (uint8_t)hueQuotient;
+
+  switch (sector) {
+  case 0: {
+    red = c;
+    green = x;
+    blue = 0.0f;
+    break;
+  }
+  case 1: {
+    red = x;
+    green = c;
+    blue = 0.0f;
+    break;
+  }
+  case 2: {
+    red = 0.0f;
+    green = c;
+    blue = x;
+    break;
+  }
+  case 3: {
+    red = 0.0f;
+    green = x;
+    blue = c;
+    break;
+  }
+  case 4: {
+    red = x;
+    green = 0.0f;
+    blue = c;
+    break;
+  }
+  case 5:
+  default: {
+    red = c;
+    green = 0.0f;
+    blue = x;
+    break;
+  }
+  }
+
+  const float m = Value - c;
+  const uint8_t r = (uint8_t)((red + m) * 255.0f);
+  const uint8_t g = (uint8_t)((green + m) * 255.0f);
+  const uint8_t b = (uint8_t)((blue + m) * 255.0f);
+
+  return (uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b;
+}
+
+static uint32_t getRandomColor() {
+  const float hue = (float)rand() / (float)RAND_MAX * 360.0f;
+  return hsvToRgb(hue, 1.0f, 1.0f);
+}
+
+Model* LoadModel(const char* FilePath) {
+  constexpr cgltf_options options = {0};
+  cgltf_data* data = nullptr;
+  if (cgltf_parse_file(&options, FilePath, &data) != cgltf_result_success ||
+      cgltf_load_buffers(&options, data, FilePath) != cgltf_result_success) {
+    if (data) {
+      cgltf_free(data);
+    }
+    return nullptr;
+  }
+
+  Model* model = calloc(1, sizeof(Model));
+
+  for (size_t i = 0; i < data->nodes_count; ++i) {
+    const cgltf_node* node = &data->nodes[i];
+    if (node->mesh == nullptr) {
+      continue;
+    }
+
+    for (size_t j = 0; j < node->mesh->primitives_count; ++j) {
+      const cgltf_primitive* primitive = &node->mesh->primitives[j];
+      const cgltf_accessor* positionAccessor = nullptr;
+      for (size_t k = 0; k < primitive->attributes_count; ++k) {
+        if (primitive->attributes[k].type == cgltf_attribute_type_position) {
+          positionAccessor = primitive->attributes[k].data;
+          break;
+        }
+      }
+
+      if (positionAccessor != nullptr) {
+        model->VertexCount += positionAccessor->count;
+
+        if (primitive->indices != nullptr) {
+          model->VertexCount += primitive->indices->count;
+        } else {
+          model->IndexCount += positionAccessor->count;
+        }
+      }
+    }
+  }
+  if (model->VertexCount == 0) {
+    cgltf_free(data);
+    free(model);
+    return nullptr;
+  }
+
+  model->Vertices = calloc(model->VertexCount, sizeof(vec3));
+  model->Indices = calloc(model->IndexCount, sizeof(uint32_t));
+  model->Normals = calloc(model->IndexCount / 3, sizeof(vec3));
+
+  size_t vertexOffset = 0;
+  size_t indexOffset = 0;
+
+  for (size_t i = 0; i < data->nodes_count; ++i) {
+    const cgltf_node* node = &data->nodes[i];
+    if (node->mesh == nullptr)
+      continue;
+
+    mat4 modelMatrix;
+    cgltf_node_transform_world(node, (float*)modelMatrix);
+
+    for (size_t j = 0; j < node->mesh->primitives_count; ++j) {
+      const cgltf_primitive* primitive = &node->mesh->primitives[j];
+
+      cgltf_accessor* positionAccessor = nullptr;
+
+      for (size_t k = 0; k < primitive->attributes_count; ++k) {
+        const cgltf_attribute* attribute = &primitive->attributes[k];
+        if (attribute->type == cgltf_attribute_type_position)
+          positionAccessor = attribute->data;
+      }
+
+      if (positionAccessor == nullptr)
+        continue;
+
+      const size_t primitiveVertexCount = positionAccessor->count;
+      if (primitive->indices != nullptr) {
+        const size_t primitiveIndexCount = primitive->indices->count;
+        assert(primitiveIndexCount % 3 == 0);
+        for (size_t idx = 0; idx < primitiveIndexCount; idx += 3) {
+          uint32_t indices[3];
+          cgltf_accessor_read_uint(primitive->indices, idx, indices, 1);
+          model->Indices[indexOffset + idx] = indices[0] + vertexOffset;
+          model->Indices[indexOffset + idx + 1] = indices[1] + vertexOffset;
+          model->Indices[indexOffset + idx + 2] = indices[2] + vertexOffset;
+        }
+        indexOffset += primitiveIndexCount;
+      } else {
+        for (uint32_t idx = 0; idx < primitiveVertexCount; ++idx) {
+          model->Indices[indexOffset + idx] = idx + vertexOffset;
+        }
+        indexOffset += primitiveVertexCount;
+      }
+
+      for (uint32_t v = 0; v < primitiveVertexCount; ++v) {
+        vec3 localPosition;
+        vec3 worldPosition;
+        cgltf_accessor_read_float(positionAccessor, v, localPosition, 3);
+        glm_mat4_mulv3(modelMatrix, localPosition, 1.0f, worldPosition);
+      }
+
+      vertexOffset += primitiveVertexCount;
+    }
+  }
+
+  for (size_t i = 0; i < model->IndexCount; i += 3) {
+    const uint32_t index0 = model->Indices[i];
+    const uint32_t index1 = model->Indices[i + 1];
+    const uint32_t index2 = model->Indices[i + 2];
+
+    vec3 v0;
+    vec3 v1;
+    vec3 v2;
+
+    glm_vec3_copy(model->Vertices[index0], v0);
+    glm_vec3_copy(model->Vertices[index1], v1);
+    glm_vec3_copy(model->Vertices[index2], v2);
+
+    vec3 edge1;
+    vec3 edge2;
+    glm_vec3_sub(v1, v0, edge1);
+    glm_vec3_sub(v2, v0, edge2);
+
+    vec3 normal;
+    glm_vec3_cross(edge1, edge2, normal);
+    glm_vec3_normalize(normal);
+
+    glm_vec3_copy(normal, model->Normals[i / 3]);
+  }
+
+  for (size_t i = 0; i < model->IndexCount / 3; ++i) {
+    model->Colors[i] = getRandomColor();
+  }
+
+  cgltf_free(data);
+
+  return model;
+}
