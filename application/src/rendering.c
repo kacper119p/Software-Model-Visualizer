@@ -2,8 +2,14 @@
 
 #include "cglm/mat4.h"
 
-static float edgeFunction(const ivec2 A, const ivec2 B, const ivec2 C) {
+static inline float edgeFunction(const vec2 A, const vec2 B, const vec2 C) {
   return (A[0] - B[0]) * (C[1] - A[1]) - (A[1] - B[1]) * (C[0] - A[0]);
+}
+
+static inline void ndcToScreenNormalized(const vec3 Ndc, vec3 Normalized) {
+  Normalized[0] = (Ndc[0] + 1.0f) * 0.5f;
+  Normalized[1] = (1.0f - Ndc[1]) * 0.5f;
+  Normalized[2] = (Ndc[2] + 1.0f) * 0.5f;
 }
 
 void clearColorBuffer(const Framebuffer* const Framebuffer,
@@ -41,12 +47,12 @@ void drawPixel(const Framebuffer* const Framebuffer, const uint32_t X,
 
 void drawTriangle(const Framebuffer* Framebuffer, vec3 V0, vec3 V1, vec3 V2,
                   const uint32_t Color) {
-  const ivec2 pixelV0 = {(int32_t)(V0[0] * Framebuffer->Width),
-                         (int32_t)(V0[1] * Framebuffer->Height)};
-  const ivec2 pixelV1 = {(int32_t)(V1[0] * Framebuffer->Width),
-                         (int32_t)(V1[1] * Framebuffer->Height)};
-  const ivec2 pixelV2 = {(int32_t)(V2[0] * Framebuffer->Width),
-                         (int32_t)(V2[1] * Framebuffer->Height)};
+  const vec2 pixelV0 = {(V0[0] * Framebuffer->Width),
+                        (V0[1] * Framebuffer->Height)};
+  const vec2 pixelV1 = {(V1[0] * Framebuffer->Width),
+                        (V1[1] * Framebuffer->Height)};
+  const vec2 pixelV2 = {(V2[0] * Framebuffer->Width),
+                        (V2[1] * Framebuffer->Height)};
 
   const float area = edgeFunction(pixelV0, pixelV1, pixelV2);
 
@@ -54,16 +60,19 @@ void drawTriangle(const Framebuffer* Framebuffer, vec3 V0, vec3 V1, vec3 V2,
     return;
   }
 
-  const int32_t minX = max(0, min(pixelV0[0], min(pixelV1[0], pixelV2[0])));
-  const int32_t minY = max(0, min(pixelV0[1], min(pixelV1[1], pixelV2[1])));
-  const int32_t maxX = min((int32_t)Framebuffer->Width,
-                           max(pixelV0[0], max(pixelV1[0], pixelV2[0])));
-  const int32_t maxY = min((int32_t)Framebuffer->Height,
-                           max(pixelV0[1], max(pixelV1[1], pixelV2[1])));
+  const float minXF = fminf(pixelV0[0], fminf(pixelV1[0], pixelV2[0]));
+  const float minYF = fminf(pixelV0[1], fminf(pixelV1[1], pixelV2[1]));
+  const float maxXF = fmaxf(pixelV0[0], fmaxf(pixelV1[0], pixelV2[0]));
+  const float maxYF = fmaxf(pixelV0[1], fmaxf(pixelV1[1], pixelV2[1]));
+
+  const int32_t minX = max(0, (int32_t)floorf(minXF));
+  const int32_t minY = max(0, (int32_t)floorf(minYF));
+  const int32_t maxX = min((int32_t)Framebuffer->Width, (int32_t)ceilf(maxXF));
+  const int32_t maxY = min((int32_t)Framebuffer->Height, (int32_t)ceilf(maxYF));
 
   for (int32_t y = minY; y < maxY; ++y) {
     for (int32_t x = minX; x < maxX; ++x) {
-      const ivec2 pixel = {x, y};
+      const vec2 pixel = {x, y};
       float w0 = edgeFunction(pixelV1, pixelV2, pixel);
       if (w0 < 0.0f) {
         continue;
@@ -99,14 +108,29 @@ void drawModel(const Framebuffer* Framebuffer, const Model* Model,
     const uint32_t index0 = Model->Indices[i];
     const uint32_t index1 = Model->Indices[i + 1];
     const uint32_t index2 = Model->Indices[i + 2];
+    vec4 obj0 = {Model->Vertices[index0][0], Model->Vertices[index0][1],
+                 Model->Vertices[index0][2], 1.0f};
+    vec4 obj1 = {Model->Vertices[index1][0], Model->Vertices[index1][1],
+                 Model->Vertices[index1][2], 1.0f};
+    vec4 obj2 = {Model->Vertices[index2][0], Model->Vertices[index2][1],
+                 Model->Vertices[index2][2], 1.0f};
 
-    vec3 v0;
-    vec3 v1;
-    vec3 v2;
-    glm_mat4_mulv3(Transform, Model->Vertices[index0], 1.0f, v0);
-    glm_mat4_mulv3(Transform, Model->Vertices[index1], 1.0f, v1);
-    glm_mat4_mulv3(Transform, Model->Vertices[index2], 1.0f, v2);
+    vec4 clip0, clip1, clip2;
 
-    drawTriangle(Framebuffer, v0, v1, v2, Model->Colors[i / 3]);
+    glm_mat4_mulv(Transform, obj0, clip0);
+    glm_mat4_mulv(Transform, obj1, clip1);
+    glm_mat4_mulv(Transform, obj2, clip2);
+
+    vec3 ndc0, ndc1, ndc2;
+    glm_vec3_scale(clip0, 1.0f / clip0[3], ndc0);
+    glm_vec3_scale(clip1, 1.0f / clip1[3], ndc1);
+    glm_vec3_scale(clip2, 1.0f / clip2[3], ndc2);
+
+    vec3 norm0, norm1, norm2;
+    ndcToScreenNormalized(ndc0, norm0);
+    ndcToScreenNormalized(ndc1, norm1);
+    ndcToScreenNormalized(ndc2, norm2);
+
+    drawTriangle(Framebuffer, norm0, norm1, norm2, Model->Colors[i / 3]);
   }
 }

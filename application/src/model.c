@@ -66,12 +66,12 @@ static uint32_t hsvToRgb(const float Hue, const float Saturation,
   return (uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b;
 }
 
-static uint32_t getRandomColor() {
+static inline uint32_t getRandomColor() {
   const float hue = (float)rand() / (float)RAND_MAX * 360.0f;
   return hsvToRgb(hue, 1.0f, 1.0f);
 }
 
-static void calculateAabb(const Model* Model, vec3 Min, vec3 Max) {
+static inline void calculateAabb(const Model* Model, vec3 Min, vec3 Max) {
   vec3 min;
   vec3 max;
 
@@ -92,7 +92,8 @@ static void calculateAabb(const Model* Model, vec3 Min, vec3 Max) {
   glm_vec3_copy(max, Max);
 }
 
-bool LoadModel(const char* FilePath, Model* Destination, float* Extent) {
+bool LoadModel(const char* FilePath, Model* Destination, vec3 Center,
+               float* Extent) {
   assert(Destination != nullptr);
   constexpr cgltf_options options = {0};
   cgltf_data* data = nullptr;
@@ -101,6 +102,7 @@ bool LoadModel(const char* FilePath, Model* Destination, float* Extent) {
     if (data) {
       cgltf_free(data);
     }
+    glm_vec3_zero(Center);
     *Extent = 0.0f;
     return false;
   }
@@ -137,6 +139,7 @@ bool LoadModel(const char* FilePath, Model* Destination, float* Extent) {
   }
   if (Destination->VertexCount == 0) {
     cgltf_free(data);
+    glm_vec3_zero(Center);
     *Extent = 0.0f;
     return false;
   }
@@ -153,6 +156,7 @@ bool LoadModel(const char* FilePath, Model* Destination, float* Extent) {
     free(Destination->Normals);
     free(Destination->Colors);
     cgltf_free(data);
+    glm_vec3_zero(Center);
     *Extent = 0.0f;
     return false;
   }
@@ -246,10 +250,14 @@ bool LoadModel(const char* FilePath, Model* Destination, float* Extent) {
   vec3 aabbMax;
   calculateAabb(Destination, aabbMin, aabbMax);
   const float size = glm_vec3_distance(aabbMin, aabbMax);
+  Center[0] = (aabbMin[0] + aabbMax[0]) * 0.5f;
+  Center[1] = (aabbMin[1] + aabbMax[1]) * 0.5f;
+  Center[2] = (aabbMin[2] + aabbMax[2]) * 0.5f;
   *Extent = size / 2.0f;
 
   return true;
 }
+
 void DestroyModel(const Model* const Model) {
   free(Model->Vertices);
   free(Model->Indices);
