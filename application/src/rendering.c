@@ -1,5 +1,7 @@
 #include "rendering.h"
 
+#include "cglm/mat4.h"
+
 static float edgeFunction(const ivec2 A, const ivec2 B, const ivec2 C) {
   return (A[0] - B[0]) * (C[1] - A[1]) - (A[1] - B[1]) * (C[0] - A[0]);
 }
@@ -88,5 +90,23 @@ void drawTriangle(const Framebuffer* Framebuffer, vec3 V0, vec3 V1, vec3 V2,
         Framebuffer->ColorBuffer[pixelIndex] = Color;
       }
     }
+  }
+}
+
+void drawModel(const Framebuffer* Framebuffer, const Model* Model,
+               mat4 Transform) {
+  for (size_t i = 0; i < Model->IndexCount; i += 3) {
+    const uint32_t index0 = Model->Indices[i];
+    const uint32_t index1 = Model->Indices[i + 1];
+    const uint32_t index2 = Model->Indices[i + 2];
+
+    vec3 v0;
+    vec3 v1;
+    vec3 v2;
+    glm_mat4_mulv3(Transform, Model->Vertices[index0], 1.0f, v0);
+    glm_mat4_mulv3(Transform, Model->Vertices[index1], 1.0f, v1);
+    glm_mat4_mulv3(Transform, Model->Vertices[index2], 1.0f, v2);
+
+    drawTriangle(Framebuffer, v0, v1, v2, Model->Colors[i / 3]);
   }
 }

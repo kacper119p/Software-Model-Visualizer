@@ -171,7 +171,7 @@ bool LoadModel(const char* FilePath, Model* Destination, float* Extent) {
     for (size_t j = 0; j < node->mesh->primitives_count; ++j) {
       const cgltf_primitive* primitive = &node->mesh->primitives[j];
 
-      cgltf_accessor* positionAccessor = nullptr;
+      const cgltf_accessor* positionAccessor = nullptr;
 
       for (size_t k = 0; k < primitive->attributes_count; ++k) {
         const cgltf_attribute* attribute = &primitive->attributes[k];

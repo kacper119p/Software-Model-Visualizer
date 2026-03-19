@@ -2,6 +2,8 @@
 
 #include <time.h>
 
+#include "cglm/affine.h"
+#include "cglm/mat4.h"
 #include "rendering.h"
 #include "timeQuery.h"
 #include "window.h"
@@ -28,31 +30,20 @@ int main(int argc, char* argv[]) {
   TimeQuery timeQuery;
   initializeTimeQuery(&timeQuery);
 
-  // float* times = calloc(1000, sizeof(float));
-
-  // float previousTime = getElapsedTime(&timeQuery);
-
-  // size_t frameCount = 0;
   while (!window->ShouldClose) {
-    // const float currentTime = getElapsedTime(&timeQuery);
-    // const float deltaTime = currentTime - previousTime;
-    // previousTime = currentTime;
-    // times[frameCount++] = deltaTime;
+    const float currentTime = getElapsedTime(&timeQuery);
     peekWindowMessages(window);
-    clearColorBuffer(&window->Framebuffer, 0x00FF0070);
+    clearColorBuffer(&window->Framebuffer, 0x00000000);
     clearDepthBuffer(&window->Framebuffer, 1.0f);
-    drawTriangle(&window->Framebuffer, (vec3){0.5f, 0.0f, 0.0f},
-                 (vec3){0.0f, 1.0f, 0.0f}, (vec3){1.0f, 1.0f, 0.0f},
-                 0x0000Ff00);
+    mat4 transform;
+    vec3 translation = {0.5f, 0.75f, 0.0f};
+    glm_translate_make(transform, translation);
+    vec3 scale = {0.18f, -0.18f, 0.18f};
+    glm_scale(transform, scale);
+    glm_rotate(transform, currentTime, (vec3){0.0f, 1.0f, 0.0f});
+    drawModel(&window->Framebuffer, &model, transform);
     presentWindow(window);
   }
-
-  // float averageTime = 0.0f;
-  // for (size_t i = 0; i < 1000; ++i) {
-  //   averageTime += times[i];
-  // }
-  // printf("averageTime: %f ms\n", averageTime);
-  // free(times);
 
   DestroyModel(&model);
   destroyWindow(window);
