@@ -18,7 +18,8 @@ int main(int argc, char* argv[]) {
   }
 
   Model model;
-  LoadModel(argv[1], &model);
+  float extent;
+  LoadModel(argv[1], &model, &extent);
 
   srand(time(nullptr));
 

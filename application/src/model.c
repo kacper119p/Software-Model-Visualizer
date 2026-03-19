@@ -1,5 +1,7 @@
 #include "model.h"
 
+#include <assert.h>
+
 #include "cglm/mat4.h"
 #include "cgltf.h"
 
@@ -69,7 +71,29 @@ static uint32_t getRandomColor() {
   return hsvToRgb(hue, 1.0f, 1.0f);
 }
 
-bool LoadModel(const char* FilePath, Model* Destination) {
+static void calculateAabb(const Model* Model, vec3 Min, vec3 Max) {
+  vec3 min;
+  vec3 max;
+
+  glm_vec3_copy(Model->Vertices[0], min);
+  glm_vec3_copy(Model->Vertices[0], max);
+
+  for (size_t i = 1; i < Model->VertexCount; ++i) {
+    for (size_t j = 0; j < 3; ++j) {
+      if (Model->Vertices[i][j] < min[j]) {
+        min[j] = Model->Vertices[i][j];
+      } else if (Model->Vertices[i][j] > max[j]) {
+        max[j] = Model->Vertices[i][j];
+      }
+    }
+  }
+
+  glm_vec3_copy(min, Min);
+  glm_vec3_copy(max, Max);
+}
+
+bool LoadModel(const char* FilePath, Model* Destination, float* Extent) {
+  assert(Destination != nullptr);
   constexpr cgltf_options options = {0};
   cgltf_data* data = nullptr;
   if (cgltf_parse_file(&options, FilePath, &data) != cgltf_result_success ||
@@ -77,6 +101,7 @@ bool LoadModel(const char* FilePath, Model* Destination) {
     if (data) {
       cgltf_free(data);
     }
+    *Extent = 0.0f;
     return false;
   }
 
@@ -112,6 +137,7 @@ bool LoadModel(const char* FilePath, Model* Destination) {
   }
   if (Destination->VertexCount == 0) {
     cgltf_free(data);
+    *Extent = 0.0f;
     return false;
   }
 
@@ -119,6 +145,17 @@ bool LoadModel(const char* FilePath, Model* Destination) {
   Destination->Indices = calloc(Destination->IndexCount, sizeof(uint32_t));
   Destination->Normals = calloc(Destination->IndexCount / 3, sizeof(vec3));
   Destination->Colors = calloc(Destination->IndexCount / 3, sizeof(uint32_t));
+
+  if (Destination->Vertices == nullptr || Destination->Indices == nullptr ||
+      Destination->Normals == nullptr || Destination->Colors == nullptr) {
+    free(Destination->Vertices);
+    free(Destination->Indices);
+    free(Destination->Normals);
+    free(Destination->Colors);
+    cgltf_free(data);
+    *Extent = 0.0f;
+    return false;
+  }
 
   size_t vertexOffset = 0;
   size_t indexOffset = 0;
@@ -167,6 +204,7 @@ bool LoadModel(const char* FilePath, Model* Destination) {
         vec3 worldPosition;
         cgltf_accessor_read_float(positionAccessor, v, localPosition, 3);
         glm_mat4_mulv3(modelMatrix, localPosition, 1.0f, worldPosition);
+        glm_vec3_copy(worldPosition, Destination->Vertices[vertexOffset + v]);
       }
 
       vertexOffset += primitiveVertexCount;
@@ -203,6 +241,12 @@ bool LoadModel(const char* FilePath, Model* Destination) {
   }
 
   cgltf_free(data);
+
+  vec3 aabbMin;
+  vec3 aabbMax;
+  calculateAabb(Destination, aabbMin, aabbMax);
+  const float size = glm_vec3_distance(aabbMin, aabbMax);
+  *Extent = size / 2.0f;
 
   return true;
 }

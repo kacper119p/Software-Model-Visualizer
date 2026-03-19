@@ -130,12 +130,13 @@ Window* createWindow() {
 
   const int32_t windowWidth = windowRect.right - windowRect.left;
   const int32_t windowHeight = windowRect.bottom - windowRect.top;
-
-  HWND windowHandle = CreateWindowEx(
-      windowExStyle, windowClass.lpszClassName, "Software Rasterizer",
-      windowStyle, CW_USEDEFAULT, CW_USEDEFAULT, windowWidth, windowHeight,
-      NULL, NULL, instance, window);
-
+#if !NDEBUG
+  HWND windowHandle =
+#endif
+      CreateWindowEx(windowExStyle, windowClass.lpszClassName,
+                     "Software Rasterizer", windowStyle, CW_USEDEFAULT,
+                     CW_USEDEFAULT, windowWidth, windowHeight, NULL, NULL,
+                     instance, window);
   assert(windowHandle);
 
   return window;

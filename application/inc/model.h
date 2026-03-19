@@ -11,7 +11,7 @@ typedef struct Model {
   uint32_t* Colors;
 } Model;
 
-bool LoadModel(const char* FilePath, Model* Destination);
+bool LoadModel(const char* FilePath, Model* Destination, float* Extent);
 void DestroyModel(const Model* Model);
 
 #endif // MODEL_H
