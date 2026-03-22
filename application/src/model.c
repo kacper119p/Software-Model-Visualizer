@@ -71,19 +71,20 @@ static inline uint32_t getRandomColor() {
   return hsvToRgb(hue, 1.0f, 1.0f);
 }
 
-static inline void calculateAabb(const Model* Model, vec3 Min, vec3 Max) {
+static inline void calculateAabb(vec3* Vertices, size_t VertexCount, vec3 Min,
+                                 vec3 Max) {
   vec3 min;
   vec3 max;
 
-  glm_vec3_copy(Model->Vertices[0], min);
-  glm_vec3_copy(Model->Vertices[0], max);
+  glm_vec3_copy(Vertices[0], min);
+  glm_vec3_copy(Vertices[0], max);
 
-  for (size_t i = 1; i < Model->VertexCount; ++i) {
+  for (size_t i = 1; i < VertexCount; ++i) {
     for (size_t j = 0; j < 3; ++j) {
-      if (Model->Vertices[i][j] < min[j]) {
-        min[j] = Model->Vertices[i][j];
-      } else if (Model->Vertices[i][j] > max[j]) {
-        max[j] = Model->Vertices[i][j];
+      if (Vertices[i][j] < min[j]) {
+        min[j] = Vertices[i][j];
+      } else if (Vertices[i][j] > max[j]) {
+        max[j] = Vertices[i][j];
       }
     }
   }
@@ -144,17 +145,21 @@ bool LoadModel(const char* FilePath, Model* Destination, vec3 Center,
     return false;
   }
 
-  Destination->Vertices = calloc(Destination->VertexCount, sizeof(vec3));
-  Destination->Indices = calloc(Destination->IndexCount, sizeof(uint32_t));
-  Destination->Normals = calloc(Destination->IndexCount / 3, sizeof(vec3));
-  Destination->Colors = calloc(Destination->IndexCount / 3, sizeof(uint32_t));
+  vec3* const restrict vertices =
+      calloc(Destination->VertexCount, sizeof(vec3));
+  uint32_t* const restrict indices =
+      calloc(Destination->IndexCount, sizeof(uint32_t));
+  vec3* const restrict normals =
+      calloc(Destination->IndexCount / 3, sizeof(vec3));
+  uint32_t* const restrict colors =
+      calloc(Destination->IndexCount / 3, sizeof(uint32_t));
 
-  if (Destination->Vertices == nullptr || Destination->Indices == nullptr ||
-      Destination->Normals == nullptr || Destination->Colors == nullptr) {
-    free(Destination->Vertices);
-    free(Destination->Indices);
-    free(Destination->Normals);
-    free(Destination->Colors);
+  if (vertices == nullptr || indices == nullptr || normals == nullptr ||
+      colors == nullptr) {
+    free(vertices);
+    free(indices);
+    free(normals);
+    free(colors);
     cgltf_free(data);
     glm_vec3_zero(Center);
     *Extent = 0.0f;
@@ -193,12 +198,12 @@ bool LoadModel(const char* FilePath, Model* Destination, vec3 Center,
         for (size_t idx = 0; idx < primitiveIndexCount; ++idx) {
           uint32_t index;
           cgltf_accessor_read_uint(primitive->indices, idx, &index, 1);
-          Destination->Indices[indexOffset + idx] = index + vertexOffset;
+          indices[indexOffset + idx] = index + vertexOffset;
         }
         indexOffset += primitiveIndexCount;
       } else {
         for (uint32_t idx = 0; idx < primitiveVertexCount; ++idx) {
-          Destination->Indices[indexOffset + idx] = idx + vertexOffset;
+          indices[indexOffset + idx] = idx + vertexOffset;
         }
         indexOffset += primitiveVertexCount;
       }
@@ -208,7 +213,7 @@ bool LoadModel(const char* FilePath, Model* Destination, vec3 Center,
         vec3 worldPosition;
         cgltf_accessor_read_float(positionAccessor, v, localPosition, 3);
         glm_mat4_mulv3(modelMatrix, localPosition, 1.0f, worldPosition);
-        glm_vec3_copy(worldPosition, Destination->Vertices[vertexOffset + v]);
+        glm_vec3_copy(worldPosition, vertices[vertexOffset + v]);
       }
 
       vertexOffset += primitiveVertexCount;
@@ -216,17 +221,17 @@ bool LoadModel(const char* FilePath, Model* Destination, vec3 Center,
   }
 
   for (size_t i = 0; i < Destination->IndexCount; i += 3) {
-    const uint32_t index0 = Destination->Indices[i];
-    const uint32_t index1 = Destination->Indices[i + 1];
-    const uint32_t index2 = Destination->Indices[i + 2];
+    const uint32_t index0 = indices[i];
+    const uint32_t index1 = indices[i + 1];
+    const uint32_t index2 = indices[i + 2];
 
     vec3 v0;
     vec3 v1;
     vec3 v2;
 
-    glm_vec3_copy(Destination->Vertices[index0], v0);
-    glm_vec3_copy(Destination->Vertices[index1], v1);
-    glm_vec3_copy(Destination->Vertices[index2], v2);
+    glm_vec3_copy(vertices[index0], v0);
+    glm_vec3_copy(vertices[index1], v1);
+    glm_vec3_copy(vertices[index2], v2);
 
     vec3 edge1;
     vec3 edge2;
@@ -237,18 +242,24 @@ bool LoadModel(const char* FilePath, Model* Destination, vec3 Center,
     glm_vec3_cross(edge1, edge2, normal);
     glm_vec3_normalize(normal);
 
-    glm_vec3_copy(normal, Destination->Normals[i / 3]);
+    glm_vec3_copy(normal, normals[i / 3]);
   }
 
   for (size_t i = 0; i < Destination->IndexCount / 3; ++i) {
-    Destination->Colors[i] = getRandomColor();
+    colors[i] = getRandomColor();
   }
+
+  Destination->Vertices = vertices;
+  Destination->Indices = indices;
+  Destination->Normals = normals;
+  Destination->Colors = colors;
 
   cgltf_free(data);
 
   vec3 aabbMin;
   vec3 aabbMax;
-  calculateAabb(Destination, aabbMin, aabbMax);
+  calculateAabb(Destination->Vertices, Destination->VertexCount, aabbMin,
+                aabbMax);
   const float size = glm_vec3_distance(aabbMin, aabbMax);
   Center[0] = (aabbMin[0] + aabbMax[0]) * 0.5f;
   Center[1] = (aabbMin[1] + aabbMax[1]) * 0.5f;
