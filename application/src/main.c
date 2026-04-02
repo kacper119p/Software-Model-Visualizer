@@ -56,7 +56,6 @@ int main(const int argc, char* argv[]) {
         mat4Mul(mat4Mul(projectionMatrix, viewMatrix), modelMatrix);
 
     drawModel(&window->Framebuffer, &model, mvpMatrix);
-    drawModelMesh(&window->Framebuffer, &model, mvpMatrix, 0xFFFFFFFF);
     presentWindow(window);
   }
 
