@@ -9,7 +9,7 @@
 static constexpr int32_t windowDefaultWidth = 640;
 static constexpr int32_t windowDefaultHeight = 480;
 
-static void resizeFramebuffer(AppWindow* Window, const uint32_t Width,
+static void resizeFramebuffer(AppWindow* const Window, const uint32_t Width,
                               const uint32_t Height) {
   if (Window->Framebuffer.Width == Width &&
       Window->Framebuffer.Height == Height) {
@@ -107,34 +107,36 @@ AppWindow* createWindow() {
   return window;
 }
 
-void destroyWindow(AppWindow* Window) {
-  if (Window->Image) {
-    Window->Image->data = nullptr;
-    XDestroyImage(Window->Image);
+void destroyWindow(AppWindow** const Window) {
+  AppWindow* const window = *Window;
+  if (window->Image) {
+    window->Image->data = nullptr;
+    XDestroyImage(window->Image);
   }
-  if (Window->Framebuffer.ColorBuffer) {
-    munmap(Window->Framebuffer.ColorBuffer, Window->Framebuffer.Width *
-                                                Window->Framebuffer.Height *
+  if (window->Framebuffer.ColorBuffer) {
+    munmap(window->Framebuffer.ColorBuffer, window->Framebuffer.Width *
+                                                window->Framebuffer.Height *
                                                 sizeof(uint32_t));
   }
-  if (Window->Framebuffer.DepthBuffer) {
-    munmap(Window->Framebuffer.DepthBuffer, Window->Framebuffer.Width *
-                                                Window->Framebuffer.Height *
+  if (window->Framebuffer.DepthBuffer) {
+    munmap(window->Framebuffer.DepthBuffer, window->Framebuffer.Width *
+                                                window->Framebuffer.Height *
                                                 sizeof(float));
   }
-  if (Window->Gc) {
-    XFreeGC(Window->Display, Window->Gc);
+  if (window->Gc) {
+    XFreeGC(window->Display, window->Gc);
   }
-  if (Window->WindowHandle) {
-    XDestroyWindow(Window->Display, Window->WindowHandle);
+  if (window->WindowHandle) {
+    XDestroyWindow(window->Display, window->WindowHandle);
   }
-  if (Window->Display) {
-    XCloseDisplay(Window->Display);
+  if (window->Display) {
+    XCloseDisplay(window->Display);
   }
-  free(Window);
+  free(window);
+  *Window = nullptr;
 }
 
-void peekWindowMessages(AppWindow* Window) {
+void peekWindowMessages(AppWindow* const Window) {
   const Atom wmDelete = XInternAtom(Window->Display, "WM_DELETE_WINDOW", False);
 
   while (XPending(Window->Display)) {

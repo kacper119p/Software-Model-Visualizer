@@ -5,8 +5,8 @@
 #include <stdlib.h>
 #include <windows.h>
 
-static void resizeFramebuffer(Framebuffer* Framebuffer, uint32_t const Width,
-                              uint32_t const Height) {
+static void resizeFramebuffer(Framebuffer* const Framebuffer,
+                              uint32_t const Width, uint32_t const Height) {
 
   if (Framebuffer->Width == Width && Framebuffer->Height == Height) {
     return;
@@ -144,20 +144,22 @@ AppWindow* createWindow() {
   return window;
 }
 
-void destroyWindow(AppWindow* Window) {
-  if (Window->Framebuffer.ColorBuffer) {
-    VirtualFree(Window->Framebuffer.ColorBuffer, 0, MEM_RELEASE);
+void destroyWindow(AppWindow** const Window) {
+  AppWindow* window = *Window;
+  if (window->Framebuffer.ColorBuffer) {
+    VirtualFree(window->Framebuffer.ColorBuffer, 0, MEM_RELEASE);
   }
-  if (Window->Framebuffer.DepthBuffer) {
-    VirtualFree(Window->Framebuffer.DepthBuffer, 0, MEM_RELEASE);
+  if (window->Framebuffer.DepthBuffer) {
+    VirtualFree(window->Framebuffer.DepthBuffer, 0, MEM_RELEASE);
   }
-  if (Window->WindowHandle) {
-    DestroyWindow(Window->WindowHandle);
+  if (window->WindowHandle) {
+    DestroyWindow(window->WindowHandle);
   }
-  free(Window);
+  free(window);
+  *Window = nullptr;
 }
 
-void peekWindowMessages(AppWindow* Window) {
+void peekWindowMessages(AppWindow* const Window) {
   MSG message;
   while (PeekMessage(&message, NULL, 0, 0, PM_REMOVE)) {
     if (message.message == WM_QUIT) {

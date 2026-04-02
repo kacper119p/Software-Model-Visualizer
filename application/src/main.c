@@ -60,6 +60,6 @@ int main(const int argc, char* argv[]) {
   }
 
   DestroyModel(&model);
-  destroyWindow(window);
+  destroyWindow(&window);
   return EXIT_SUCCESS;
 }

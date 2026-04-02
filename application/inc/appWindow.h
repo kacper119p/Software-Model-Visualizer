@@ -35,7 +35,7 @@ typedef struct appWindow {
 
 void presentWindow(const AppWindow* Window);
 [[nodiscard]] AppWindow* createWindow();
-void destroyWindow(AppWindow* Window);
+void destroyWindow(AppWindow** Window);
 void peekWindowMessages(AppWindow* Window);
 
 #endif // SOFTWARE_MODEL_VISUALIZER_WINDOW_H
