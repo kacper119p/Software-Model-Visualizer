@@ -1,3 +1,4 @@
+#ifdef _WIN32
 #include "timeQuery.h"
 
 #include <profileapi.h>
@@ -14,3 +15,5 @@ float getElapsedTime(const TimeQuery* const TimeQuery) {
   return (float)(end.QuadPart - TimeQuery->Start.QuadPart) /
          (float)TimeQuery->Frequency.QuadPart;
 }
+
+#endif // _WIN32

@@ -1,15 +1,15 @@
 #include "rendering.h"
 
-#include "cglm/mat4.h"
+#include <stdlib.h>
 
 static inline float edgeFunction(const vec2 A, const vec2 B, const vec2 C) {
-  return (A[0] - B[0]) * (C[1] - A[1]) - (A[1] - B[1]) * (C[0] - A[0]);
+  return (A.X - B.X) * (C.Y - A.Y) - (A.Y - B.Y) * (C.X - A.X);
 }
 
-static inline void ndcToScreenNormalized(const vec3 Ndc, vec3 Normalized) {
-  Normalized[0] = (Ndc[0] + 1.0f) * 0.5f;
-  Normalized[1] = (1.0f - Ndc[1]) * 0.5f;
-  Normalized[2] = (Ndc[2] + 1.0f) * 0.5f;
+static inline void ndcToScreenNormalized(const vec3 Ndc, vec3* Normalized) {
+  Normalized->X = (Ndc.X + 1.0f) * 0.5f;
+  Normalized->Y = (1.0f - Ndc.Y) * 0.5f;
+  Normalized->Z = (Ndc.Z + 1.0f) * 0.5f;
 }
 
 void clearColorBuffer(const Framebuffer* const Framebuffer,
@@ -45,14 +45,58 @@ void drawPixel(const Framebuffer* const Framebuffer, const uint32_t X,
   Framebuffer->DepthBuffer[pixelIndex] = Depth;
 }
 
+void drawLine(const Framebuffer* const Framebuffer, vec3 V0, vec3 V1,
+              const uint32_t Color) {
+  int32_t x0 = (int32_t)(V0.X * Framebuffer->Width);
+  int32_t y0 = (int32_t)(V0.Y * Framebuffer->Height);
+  int32_t x1 = (int32_t)(V1.X * Framebuffer->Width);
+  int32_t y1 = (int32_t)(V1.Y * Framebuffer->Height);
+
+  int32_t dx = abs(x1 - x0);
+  int32_t dy = -abs(y1 - y0);
+  const int32_t sx = x0 < x1 ? 1 : -1;
+  const int32_t sy = y0 < y1 ? 1 : -1;
+  int32_t err = dx + dy;
+
+  const int32_t steps = dx > -dy ? dx : -dy;
+  const float depthStep = steps > 0 ? (V1.Z - V0.Z) / (float)steps : 0.0f;
+  float depth = V0.Z;
+
+  for (;;) {
+    if ((uint32_t)x0 < Framebuffer->Width &&
+        (uint32_t)y0 < Framebuffer->Height) {
+      const size_t pixelIndex = (size_t)y0 * Framebuffer->Width + (size_t)x0;
+      if (depth <= Framebuffer->DepthBuffer[pixelIndex]) {
+        Framebuffer->DepthBuffer[pixelIndex] = depth;
+        Framebuffer->ColorBuffer[pixelIndex] = Color;
+      }
+    }
+
+    if (x0 == x1 && y0 == y1) {
+      break;
+    }
+
+    const int32_t e2 = 2 * err;
+    if (e2 >= dy) {
+      err += dy;
+      x0 += sx;
+    }
+    if (e2 <= dx) {
+      err += dx;
+      y0 += sy;
+    }
+    depth += depthStep;
+  }
+}
+
 void drawTriangle(const Framebuffer* Framebuffer, vec3 V0, vec3 V1, vec3 V2,
                   const uint32_t Color) {
-  const vec2 pixelV0 = {(V0[0] * Framebuffer->Width),
-                        (V0[1] * Framebuffer->Height)};
-  const vec2 pixelV1 = {(V1[0] * Framebuffer->Width),
-                        (V1[1] * Framebuffer->Height)};
-  const vec2 pixelV2 = {(V2[0] * Framebuffer->Width),
-                        (V2[1] * Framebuffer->Height)};
+  const vec2 pixelV0 =
+      MAKE_VEC2(V0.X * Framebuffer->Width, V0.Y * Framebuffer->Height);
+  const vec2 pixelV1 =
+      MAKE_VEC2(V1.X * Framebuffer->Width, V1.Y * Framebuffer->Height);
+  const vec2 pixelV2 =
+      MAKE_VEC2(V2.X * Framebuffer->Width, V2.Y * Framebuffer->Height);
 
   const float area = edgeFunction(pixelV0, pixelV1, pixelV2);
 
@@ -62,26 +106,26 @@ void drawTriangle(const Framebuffer* Framebuffer, vec3 V0, vec3 V1, vec3 V2,
 
   const float areaInv = 1.0f / area;
 
-  const float minXF = fminf(pixelV0[0], fminf(pixelV1[0], pixelV2[0]));
-  const float minYF = fminf(pixelV0[1], fminf(pixelV1[1], pixelV2[1]));
-  const float maxXF = fmaxf(pixelV0[0], fmaxf(pixelV1[0], pixelV2[0]));
-  const float maxYF = fmaxf(pixelV0[1], fmaxf(pixelV1[1], pixelV2[1]));
+  const float minXF = fminf(pixelV0.X, fminf(pixelV1.X, pixelV2.X));
+  const float minYF = fminf(pixelV0.Y, fminf(pixelV1.Y, pixelV2.Y));
+  const float maxXF = fmaxf(pixelV0.X, fmaxf(pixelV1.X, pixelV2.X));
+  const float maxYF = fmaxf(pixelV0.Y, fmaxf(pixelV1.Y, pixelV2.Y));
 
   const int32_t minX = max(0, (int32_t)floorf(minXF));
   const int32_t minY = max(0, (int32_t)floorf(minYF));
   const int32_t maxX = min((int32_t)Framebuffer->Width, (int32_t)ceilf(maxXF));
   const int32_t maxY = min((int32_t)Framebuffer->Height, (int32_t)ceilf(maxYF));
 
-  const float stepXW0 = pixelV2[1] - pixelV1[1];
-  const float stepYW0 = pixelV1[0] - pixelV2[0];
+  const float stepXW0 = pixelV2.Y - pixelV1.Y;
+  const float stepYW0 = pixelV1.X - pixelV2.X;
 
-  const float stepXW1 = pixelV0[1] - pixelV2[1];
-  const float stepYW1 = pixelV2[0] - pixelV0[0];
+  const float stepXW1 = pixelV0.Y - pixelV2.Y;
+  const float stepYW1 = pixelV2.X - pixelV0.X;
 
-  const float stepXW2 = pixelV1[1] - pixelV0[1];
-  const float stepYW2 = pixelV0[0] - pixelV1[0];
+  const float stepXW2 = pixelV1.Y - pixelV0.Y;
+  const float stepYW2 = pixelV0.X - pixelV1.X;
 
-  const vec2 initialPixel = {(float)minX, (float)minY};
+  const vec2 initialPixel = MAKE_VEC2((float)minX, (float)minY);
   float w0Row = edgeFunction(pixelV1, pixelV2, initialPixel);
   float w1Row = edgeFunction(pixelV2, pixelV0, initialPixel);
   float w2Row = edgeFunction(pixelV0, pixelV1, initialPixel);
@@ -97,7 +141,7 @@ void drawTriangle(const Framebuffer* Framebuffer, vec3 V0, vec3 V1, vec3 V2,
         const float b1 = w1 * areaInv;
         const float b2 = w2 * areaInv;
 
-        const float depth = b0 * V0[2] + b1 * V1[2] + b2 * V2[2];
+        const float depth = b0 * V0.Z + b1 * V1.Z + b2 * V2.Z;
         const size_t pixelIndex = y * Framebuffer->Width + x;
 
         if (depth < Framebuffer->DepthBuffer[pixelIndex]) {
@@ -122,29 +166,68 @@ void drawModel(const Framebuffer* Framebuffer, const Model* Model,
     const uint32_t index0 = Model->Indices[i];
     const uint32_t index1 = Model->Indices[i + 1];
     const uint32_t index2 = Model->Indices[i + 2];
-    vec4 obj0 = {Model->Vertices[index0][0], Model->Vertices[index0][1],
-                 Model->Vertices[index0][2], 1.0f};
-    vec4 obj1 = {Model->Vertices[index1][0], Model->Vertices[index1][1],
-                 Model->Vertices[index1][2], 1.0f};
-    vec4 obj2 = {Model->Vertices[index2][0], Model->Vertices[index2][1],
-                 Model->Vertices[index2][2], 1.0f};
+    vec4 obj0 = MAKE_VEC4(Model->Vertices[index0].X, Model->Vertices[index0].Y,
+                          Model->Vertices[index0].Z, 1.0f);
+    vec4 obj1 = MAKE_VEC4(Model->Vertices[index1].X, Model->Vertices[index1].Y,
+                          Model->Vertices[index1].Z, 1.0f);
+    vec4 obj2 = MAKE_VEC4(Model->Vertices[index2].X, Model->Vertices[index2].Y,
+                          Model->Vertices[index2].Z, 1.0f);
 
     vec4 clip0, clip1, clip2;
 
-    glm_mat4_mulv(Transform, obj0, clip0);
-    glm_mat4_mulv(Transform, obj1, clip1);
-    glm_mat4_mulv(Transform, obj2, clip2);
+    clip0 = mat4MulVec4(Transform, obj0);
+    clip1 = mat4MulVec4(Transform, obj1);
+    clip2 = mat4MulVec4(Transform, obj2);
 
-    vec3 ndc0, ndc1, ndc2;
-    glm_vec3_scale(clip0, 1.0f / clip0[3], ndc0);
-    glm_vec3_scale(clip1, 1.0f / clip1[3], ndc1);
-    glm_vec3_scale(clip2, 1.0f / clip2[3], ndc2);
+    vec3 ndc0 =
+        MAKE_VEC3(clip0.X / clip0.W, clip0.Y / clip0.W, clip0.Z / clip0.W);
+    vec3 ndc1 =
+        MAKE_VEC3(clip1.X / clip1.W, clip1.Y / clip1.W, clip1.Z / clip1.W);
+    vec3 ndc2 =
+        MAKE_VEC3(clip2.X / clip2.W, clip2.Y / clip2.W, clip2.Z / clip2.W);
 
     vec3 norm0, norm1, norm2;
-    ndcToScreenNormalized(ndc0, norm0);
-    ndcToScreenNormalized(ndc1, norm1);
-    ndcToScreenNormalized(ndc2, norm2);
+    ndcToScreenNormalized(ndc0, &norm0);
+    ndcToScreenNormalized(ndc1, &norm1);
+    ndcToScreenNormalized(ndc2, &norm2);
 
     drawTriangle(Framebuffer, norm0, norm1, norm2, Model->Colors[i / 3]);
+  }
+}
+
+void drawModelMesh(const Framebuffer* Framebuffer, const Model* Model,
+                   mat4 Transform, const uint32_t Color) {
+  for (size_t i = 0; i < Model->IndexCount; i += 3) {
+    const uint32_t index0 = Model->Indices[i];
+    const uint32_t index1 = Model->Indices[i + 1];
+    const uint32_t index2 = Model->Indices[i + 2];
+    vec4 obj0 = MAKE_VEC4(Model->Vertices[index0].X, Model->Vertices[index0].Y,
+                          Model->Vertices[index0].Z, 1.0f);
+    vec4 obj1 = MAKE_VEC4(Model->Vertices[index1].X, Model->Vertices[index1].Y,
+                          Model->Vertices[index1].Z, 1.0f);
+    vec4 obj2 = MAKE_VEC4(Model->Vertices[index2].X, Model->Vertices[index2].Y,
+                          Model->Vertices[index2].Z, 1.0f);
+
+    vec4 clip0, clip1, clip2;
+
+    clip0 = mat4MulVec4(Transform, obj0);
+    clip1 = mat4MulVec4(Transform, obj1);
+    clip2 = mat4MulVec4(Transform, obj2);
+
+    vec3 ndc0 =
+        MAKE_VEC3(clip0.X / clip0.W, clip0.Y / clip0.W, clip0.Z / clip0.W);
+    vec3 ndc1 =
+        MAKE_VEC3(clip1.X / clip1.W, clip1.Y / clip1.W, clip1.Z / clip1.W);
+    vec3 ndc2 =
+        MAKE_VEC3(clip2.X / clip2.W, clip2.Y / clip2.W, clip2.Z / clip2.W);
+
+    vec3 norm0, norm1, norm2;
+    ndcToScreenNormalized(ndc0, &norm0);
+    ndcToScreenNormalized(ndc1, &norm1);
+    ndcToScreenNormalized(ndc2, &norm2);
+
+    drawLine(Framebuffer, norm0, norm1, Color);
+    drawLine(Framebuffer, norm1, norm2, Color);
+    drawLine(Framebuffer, norm2, norm0, Color);
   }
 }

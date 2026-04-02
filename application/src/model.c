@@ -1,8 +1,8 @@
 #include "model.h"
 
 #include <assert.h>
+#include <stdlib.h>
 
-#include "cglm/mat4.h"
 #include "cgltf.h"
 
 static uint32_t hsvToRgb(const float Hue, const float Saturation,
@@ -71,30 +71,28 @@ static inline uint32_t getRandomColor() {
   return hsvToRgb(hue, 1.0f, 1.0f);
 }
 
-static inline void calculateAabb(vec3* Vertices, size_t VertexCount, vec3 Min,
-                                 vec3 Max) {
-  vec3 min;
-  vec3 max;
-
-  glm_vec3_copy(Vertices[0], min);
-  glm_vec3_copy(Vertices[0], max);
+static inline void calculateAabb(const vec3* const Vertices,
+                                 const size_t VertexCount, vec3* Min,
+                                 vec3* Max) {
+  vec3 min = Vertices[0];
+  vec3 max = Vertices[0];
 
   for (size_t i = 1; i < VertexCount; ++i) {
     for (size_t j = 0; j < 3; ++j) {
-      if (Vertices[i][j] < min[j]) {
-        min[j] = Vertices[i][j];
-      } else if (Vertices[i][j] > max[j]) {
-        max[j] = Vertices[i][j];
+      if (Vertices[i].ValuePtr[j] < min.ValuePtr[j]) {
+        min.ValuePtr[j] = Vertices[i].ValuePtr[j];
+      } else if (Vertices[i].ValuePtr[j] > max.ValuePtr[j]) {
+        max.ValuePtr[j] = Vertices[i].ValuePtr[j];
       }
     }
   }
 
-  glm_vec3_copy(min, Min);
-  glm_vec3_copy(max, Max);
+  vec3Copy(min, Min);
+  vec3Copy(max, Max);
 }
 
-bool LoadModel(const char* FilePath, Model* Destination, vec3 Center,
-               float* Extent) {
+bool LoadModel(const char* const FilePath, Model* const Destination,
+               vec3* const Center, float* const Extent) {
   assert(Destination != nullptr);
   constexpr cgltf_options options = {0};
   cgltf_data* data = nullptr;
@@ -103,7 +101,7 @@ bool LoadModel(const char* FilePath, Model* Destination, vec3 Center,
     if (data) {
       cgltf_free(data);
     }
-    glm_vec3_zero(Center);
+    *Center = VEC3_ZERO;
     *Extent = 0.0f;
     return false;
   }
@@ -140,7 +138,7 @@ bool LoadModel(const char* FilePath, Model* Destination, vec3 Center,
   }
   if (Destination->VertexCount == 0) {
     cgltf_free(data);
-    glm_vec3_zero(Center);
+    *Center = VEC3_ZERO;
     *Extent = 0.0f;
     return false;
   }
@@ -161,7 +159,7 @@ bool LoadModel(const char* FilePath, Model* Destination, vec3 Center,
     free(normals);
     free(colors);
     cgltf_free(data);
-    glm_vec3_zero(Center);
+    *Center = VEC3_ZERO;
     *Extent = 0.0f;
     return false;
   }
@@ -175,7 +173,7 @@ bool LoadModel(const char* FilePath, Model* Destination, vec3 Center,
       continue;
 
     mat4 modelMatrix;
-    cgltf_node_transform_world(node, (float*)modelMatrix);
+    cgltf_node_transform_world(node, modelMatrix.ValuePtr);
 
     for (size_t j = 0; j < node->mesh->primitives_count; ++j) {
       const cgltf_primitive* primitive = &node->mesh->primitives[j];
@@ -210,10 +208,13 @@ bool LoadModel(const char* FilePath, Model* Destination, vec3 Center,
 
       for (uint32_t v = 0; v < primitiveVertexCount; ++v) {
         vec3 localPosition;
-        vec3 worldPosition;
-        cgltf_accessor_read_float(positionAccessor, v, localPosition, 3);
-        glm_mat4_mulv3(modelMatrix, localPosition, 1.0f, worldPosition);
-        glm_vec3_copy(worldPosition, vertices[vertexOffset + v]);
+        cgltf_accessor_read_float(positionAccessor, v, localPosition.ValuePtr,
+                                  3);
+        vec4 worldPosition =
+            mat4MulVec4(modelMatrix, MAKE_VEC4(localPosition.X, localPosition.Y,
+                                               localPosition.Z, 1.0f));
+        vertices[vertexOffset + v] =
+            MAKE_VEC3(worldPosition.X, worldPosition.Y, worldPosition.Z);
       }
 
       vertexOffset += primitiveVertexCount;
@@ -225,24 +226,15 @@ bool LoadModel(const char* FilePath, Model* Destination, vec3 Center,
     const uint32_t index1 = indices[i + 1];
     const uint32_t index2 = indices[i + 2];
 
-    vec3 v0;
-    vec3 v1;
-    vec3 v2;
+    const vec3 v0 = vertices[index0];
+    const vec3 v1 = vertices[index1];
+    const vec3 v2 = vertices[index2];
 
-    glm_vec3_copy(vertices[index0], v0);
-    glm_vec3_copy(vertices[index1], v1);
-    glm_vec3_copy(vertices[index2], v2);
+    const vec3 edge1 = vec3Sub(v1, v0);
+    const vec3 edge2 = vec3Sub(v2, v0);
 
-    vec3 edge1;
-    vec3 edge2;
-    glm_vec3_sub(v1, v0, edge1);
-    glm_vec3_sub(v2, v0, edge2);
-
-    vec3 normal;
-    glm_vec3_cross(edge1, edge2, normal);
-    glm_vec3_normalize(normal);
-
-    glm_vec3_copy(normal, normals[i / 3]);
+    vec3 normal = vec3Cross(edge1, edge2);
+    normals[i / 3] = vec3Normalize(normal);
   }
 
   for (size_t i = 0; i < Destination->IndexCount / 3; ++i) {
@@ -258,12 +250,12 @@ bool LoadModel(const char* FilePath, Model* Destination, vec3 Center,
 
   vec3 aabbMin;
   vec3 aabbMax;
-  calculateAabb(Destination->Vertices, Destination->VertexCount, aabbMin,
-                aabbMax);
-  const float size = glm_vec3_distance(aabbMin, aabbMax);
-  Center[0] = (aabbMin[0] + aabbMax[0]) * 0.5f;
-  Center[1] = (aabbMin[1] + aabbMax[1]) * 0.5f;
-  Center[2] = (aabbMin[2] + aabbMax[2]) * 0.5f;
+  calculateAabb(Destination->Vertices, Destination->VertexCount, &aabbMin,
+                &aabbMax);
+  const float size = vec3Dist(aabbMin, aabbMax);
+  Center->X = (aabbMin.X + aabbMax.X) * 0.5f;
+  Center->Y = (aabbMin.Y + aabbMax.Y) * 0.5f;
+  Center->Z = (aabbMin.Z + aabbMax.Z) * 0.5f;
   *Extent = size / 2.0f;
 
   return true;
