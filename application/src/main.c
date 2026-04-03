@@ -21,7 +21,7 @@ int main(const int argc, char* argv[]) {
   Model model;
   vec3 modelCenter;
   float extent;
-  LoadModel(argv[1], &model, &modelCenter, &extent);
+  loadModel(argv[1], &model, &modelCenter, &extent);
 
   srand(time(nullptr));
 
@@ -56,10 +56,11 @@ int main(const int argc, char* argv[]) {
         mat4Mul(mat4Mul(projectionMatrix, viewMatrix), modelMatrix);
 
     drawModel(&window->Framebuffer, &model, mvpMatrix);
+    drawModelMesh(&window->Framebuffer, &model, mvpMatrix, 0xFFFFFFFF);
     presentWindow(window);
   }
 
-  DestroyModel(&model);
+  destroyModel(&model);
   destroyWindow(&window);
   return EXIT_SUCCESS;
 }

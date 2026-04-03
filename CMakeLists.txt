@@ -5,5 +5,10 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 include(global_settings)
 include(get_cpm)
 
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/testFramework/cmake)
+include(testFramework)
+
+
 add_subdirectory(third_party)
 add_subdirectory(application)
+add_subdirectory(testFramework)
