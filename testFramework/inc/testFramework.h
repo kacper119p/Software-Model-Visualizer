@@ -32,4 +32,7 @@ struct TestEntry {
 #define ASSERT_FLOAT_EQ(a, b, eps)                                             \
   ASSERT(((a) - (b)) < (eps) && ((b) - (a)) < (eps))
 
-#define TEST(testName) void testName(TestEntry* _Test_Data_)
+#define TEST_PREFIX_(a, b) a##__##b
+#define TEST_PREFIX(a, b) TEST_PREFIX_(a, b)
+#define TEST(testName)                                                         \
+  void TEST_PREFIX(TEST_FILE_PREFIX, testName)(TestEntry * _Test_Data_)

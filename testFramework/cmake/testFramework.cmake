@@ -1,23 +1,29 @@
 function(add_test_executable TARGET)
-    set(REGISTRY_FILE ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}_registry.c)
+    set(REGISTRY_FILE ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}TestCaseRegistry.c)
 
-    set(ABS_SOURCES "")
-    foreach (SRC ${ARGN})
-        get_filename_component(ABS_SRC "${SRC}" ABSOLUTE)
-        list(APPEND ABS_SOURCES "${ABS_SRC}")
+    set(ABSOLUTE_PATHS "")
+    foreach (SOURCE_FILE ${ARGN})
+        get_filename_component(ABSOLUTE_PATH "${SOURCE_FILE}" ABSOLUTE)
+        list(APPEND ABSOLUTE_PATHS "${ABSOLUTE_PATH}")
     endforeach ()
 
     add_custom_command(
             OUTPUT ${REGISTRY_FILE}
             COMMAND ${CMAKE_COMMAND}
-            -DOUT_FILE=${REGISTRY_FILE}
-            -DSOURCES="${ABS_SOURCES}"
+            -D OUT_FILE=${REGISTRY_FILE}
+            -D SOURCE_FILES="${ABSOLUTE_PATHS}"
+            -D SOURCE_PATHS="${ARGN}"
             -P ${CMAKE_CURRENT_FUNCTION_LIST_DIR}/generateTestCaseRegistry.cmake
-            DEPENDS ${ABS_SOURCES}
+            DEPENDS ${ABSOLUTE_PATHS}
     )
 
     add_executable(${TARGET} ${ARGN} ${REGISTRY_FILE})
     target_link_libraries(${TARGET} PRIVATE TestFramework)
+
+    foreach (SOURCE_FILE ${ARGN})
+        string(REGEX REPLACE "[^a-zA-Z0-9]" "_" TEST_FILE_PREFIX "${SOURCE_FILE}")
+        set_property(SOURCE "${SOURCE_FILE}" APPEND PROPERTY COMPILE_DEFINITIONS "TEST_FILE_PREFIX=${TEST_FILE_PREFIX}")
+    endforeach ()
 
     add_custom_command(TARGET ${TARGET} POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E remove ${REGISTRY_FILE}

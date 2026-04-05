@@ -52,6 +52,7 @@ set(TEST_NAME ${PROJECT_NAME}_Tests)
 
 set(TEST_SOURCE_FILES
         test/graphicsMath.c
+        test/graphicsMath2.c
 )
 
 add_test_executable(${TEST_NAME}
