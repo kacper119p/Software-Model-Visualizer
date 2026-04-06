@@ -34,8 +34,8 @@ struct TestEntry {
 
 #define _ASSERT_EQUAL_INT_(Actual, Expected, Type, Format)                     \
   do {                                                                         \
-    Type _actual_ = (Actual);                                                  \
-    Type _expected_ = (Expected);                                              \
+    const Type _actual_ = (Actual);                                            \
+    const Type _expected_ = (Expected);                                        \
     if (_actual_ != _expected_) {                                              \
       _Test_Data_->TestResult = TestResult_Failure;                            \
       printf(ANSI_RED "ASSERTION FAILED" ANSI_RESET ": %s:%d: "                \
@@ -64,9 +64,9 @@ struct TestEntry {
 
 #define _ASSERT_CLOSE_FLOAT_(Actual, Expected, Tolerance, Type, Format)        \
   do {                                                                         \
-    Type _actual_ = Actual;                                                    \
-    Type _expected_ = Expected;                                                \
-    Type _tolerance_ = Tolerance;                                              \
+    const Type _actual_ = Actual;                                              \
+    const Type _expected_ = Expected;                                          \
+    const Type _tolerance_ = Tolerance;                                        \
     if (fabs(_actual_ - _expected_) > _tolerance_) {                           \
       printf(ANSI_RED "ASSERTION FAILED" ANSI_RESET ": %s:%d: "                \
                       "Expected " Format ", but was " Format                   \
