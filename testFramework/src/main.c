@@ -31,7 +31,7 @@ int main(void) {
 
   const char* currentFile = "\0";
   for (size_t i = 0; i < testCount; i++) {
-    if (strncmp(currentFile, tests[i].FileName, 512) != 0) {
+    if (strcmp(currentFile, tests[i].FileName) != 0) {
       currentFile = tests[i].FileName;
       printf("[ " ANSI_CYAN_BOLD "RUNNING FILE" ANSI_RESET " ] %s\n",
              tests[i].FileName);

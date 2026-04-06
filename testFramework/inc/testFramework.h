@@ -1,4 +1,7 @@
 #pragma once
+#include <inttypes.h>
+#include <math.h>
+#include <stdint.h>
 #include <stdio.h>
 
 #include "ansiColors.h"
@@ -10,13 +13,13 @@ typedef void (*TestFunction)(TestEntry*);
 typedef enum TestResult { TestResult_Success, TestResult_Failure } TestResult;
 
 struct TestEntry {
-  const char* Name;
-  const char* FileName;
+  const char* const Name;
+  const char* const FileName;
   TestFunction Function;
   TestResult TestResult;
 };
 
-#define ASSERT(cond)                                                           \
+#define ASSERT_TRUE(cond)                                                      \
   do {                                                                         \
     if (!(cond)) {                                                             \
       _Test_Data_->TestResult = TestResult_Failure;                            \
@@ -29,8 +32,55 @@ struct TestEntry {
     }                                                                          \
   } while (0)
 
-#define ASSERT_FLOAT_EQ(a, b, eps)                                             \
-  ASSERT(((a) - (b)) < (eps) && ((b) - (a)) < (eps))
+#define _ASSERT_EQUAL_INT_(Actual, Expected, Type, Format)                     \
+  do {                                                                         \
+    Type _actual_ = (Actual);                                                  \
+    Type _expected_ = (Expected);                                              \
+    if (_actual_ != _expected_) {                                              \
+      _Test_Data_->TestResult = TestResult_Failure;                            \
+      printf(ANSI_RED "ASSERTION FAILED" ANSI_RESET ": %s:%d: "                \
+                      "Expected " Format ", but was " Format ".\n",            \
+             __FILE__, __LINE__, _expected_, _actual_);                        \
+      return;                                                                  \
+    }                                                                          \
+  } while (0)
+
+#define ASSERT_EQUAL_INT8(Actual, Expected)                                    \
+  _ASSERT_EQUAL_INT_(Actual, Expected, int8_t, "%" PRId8)
+#define ASSERT_EQUAL_INT16(Actual, Expected)                                   \
+  _ASSERT_EQUAL_INT_(Actual, Expected, int16_t, "%" PRId16)
+#define ASSERT_EQUAL_INT32(Actual, Expected)                                   \
+  _ASSERT_EQUAL_INT_(Actual, Expected, int32_t, "%" PRId32)
+#define ASSERT_EQUAL_INT64(Actual, Expected)                                   \
+  _ASSERT_EQUAL_INT_(Actual, Expected, int64_t, "%" PRId64)
+#define ASSERT_EQUAL_UINT8(Actual, Expected)                                   \
+  _ASSERT_EQUAL_INT_(Actual, Expected, uint8_t, "%" PRIu8)
+#define ASSERT_EQUAL_UINT16(Actual, Expected)                                  \
+  _ASSERT_EQUAL_INT_(Actual, Expected, uint16_t, "%" PRIu16)
+#define ASSERT_EQUAL_UINT32(Actual, Expected)                                  \
+  _ASSERT_EQUAL_INT_(Actual, Expected, uint32_t, "%" PRIu32)
+#define ASSERT_EQUAL_UINT64(Actual, Expected)                                  \
+  _ASSERT_EQUAL_INT_(Actual, Expected, uint64_t, "%" PRIu64)
+
+#define _ASSERT_CLOSE_FLOAT_(Actual, Expected, Tolerance, Type, Format)        \
+  do {                                                                         \
+    Type _actual_ = Actual;                                                    \
+    Type _expected_ = Expected;                                                \
+    Type _tolerance_ = Tolerance;                                              \
+    if (fabs(_actual_ - _expected_) > _tolerance_) {                           \
+      printf(ANSI_RED "ASSERTION FAILED" ANSI_RESET ": %s:%d: "                \
+                      "Expected " Format ", but was " Format                   \
+                      ", tolerance: " Format ".\n",                            \
+             __FILE__, __LINE__, _actual_, _expected_, _tolerance_);           \
+      _Test_Data_->TestResult = TestResult_Failure;                            \
+      return;                                                                  \
+    }                                                                          \
+  } while (0)
+
+#define ASSERT_CLOSE_FLOAT(Actual, Expected, Tolerance)                        \
+  _ASSERT_CLOSE_FLOAT_(Actual, Expected, Tolerance, float, "%f")
+#define ASSERT_CLOSE_DOUBLE(Actual, Expected, Tolerance)                       \
+  _ASSERT_CLOSE_FLOAT_(Actual, Expected, Tolerance, double, "%lf")
 
 #define TEST_PREFIX_(a, b) a##__##b
 #define TEST_PREFIX(a, b) TEST_PREFIX_(a, b)
