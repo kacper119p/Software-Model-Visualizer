@@ -1,4 +1,5 @@
-#pragma once
+#ifndef TEST_FRAMEWORK_H
+#define TEST_FRAMEWORK_H
 #include <inttypes.h>
 #include <math.h>
 #include <stdint.h>
@@ -86,3 +87,5 @@ struct TestEntry {
 #define TEST_PREFIX(a, b) TEST_PREFIX_(a, b)
 #define TEST(testName)                                                         \
   void TEST_PREFIX(TEST_FILE_PREFIX, testName)(TestEntry * _Test_Data_)
+
+#endif // TEST_FRAMEWORK_H
