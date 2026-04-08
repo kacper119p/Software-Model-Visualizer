@@ -77,11 +77,11 @@ struct TestEntry {
     const Type _expected_ = Expected;                                          \
     const Type _tolerance_ = Tolerance;                                        \
     if (fabs(_actual_ - _expected_) > _tolerance_) {                           \
+      _Test_Data_->TestResult = TestResult_Failure;                            \
       printf(ANSI_RED "ASSERTION FAILED" ANSI_RESET ": %s:%d: "                \
                       "Expected " Format ", but was " Format                   \
                       ", tolerance: " Format ".\n",                            \
              __FILE__, __LINE__, _actual_, _expected_, _tolerance_);           \
-      _Test_Data_->TestResult = TestResult_Failure;                            \
       return;                                                                  \
     }                                                                          \
   } while (0)
@@ -245,14 +245,14 @@ struct TestEntry {
         if (_actual_char_[i] != _expected_char_[i]) {                          \
           printf(ANSI_RED);                                                    \
         }                                                                      \
-        printf("%02x " ANSI_RESET, _actual_char_[i]);                          \
+        printf("%02x " ANSI_RESET, _expected_char_[i]);                        \
       }                                                                        \
       printf("}\n  Actual: {");                                                \
       for (size_t i = 0; i < _size_; ++i) {                                    \
         if (_actual_char_[i] != _expected_char_[i]) {                          \
           printf(ANSI_RED);                                                    \
         }                                                                      \
-        printf("%02x " ANSI_RESET, _expected_char_[i]);                        \
+        printf("%02x " ANSI_RESET, _actual_char_[i]);                          \
       }                                                                        \
       printf("}\n");                                                           \
       return;                                                                  \
