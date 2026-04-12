@@ -47,22 +47,26 @@ void drawPixel(const Framebuffer* const Framebuffer, const uint32_t X,
 
 void drawLine(const Framebuffer* const Framebuffer, vec3 V0, vec3 V1,
               const uint32_t Color) {
-  int32_t x0 = (int32_t)(V0.X * Framebuffer->Width);
-  int32_t y0 = (int32_t)(V0.Y * Framebuffer->Height);
-  int32_t x1 = (int32_t)(V1.X * Framebuffer->Width);
-  int32_t y1 = (int32_t)(V1.Y * Framebuffer->Height);
+  vec3 norm0, norm1;
+  ndcToScreenNormalized(V0, &norm0);
+  ndcToScreenNormalized(V1, &norm1);
 
-  int32_t dx = abs(x1 - x0);
-  int32_t dy = -abs(y1 - y0);
+  int32_t x0 = (int32_t)(norm0.X * Framebuffer->Width);
+  int32_t y0 = (int32_t)(norm0.Y * Framebuffer->Height);
+  const int32_t x1 = (int32_t)(norm1.X * Framebuffer->Width);
+  const int32_t y1 = (int32_t)(norm1.Y * Framebuffer->Height);
+
+  const int32_t dx = abs(x1 - x0);
+  const int32_t dy = -abs(y1 - y0);
   const int32_t sx = x0 < x1 ? 1 : -1;
   const int32_t sy = y0 < y1 ? 1 : -1;
   int32_t err = dx + dy;
 
   const int32_t steps = dx > -dy ? dx : -dy;
-  const float depthStep = steps > 0 ? (V1.Z - V0.Z) / (float)steps : 0.0f;
-  float depth = V0.Z;
+  const float depthStep = steps > 0 ? (norm1.Z - norm0.Z) / (float)steps : 0.0f;
+  float depth = norm0.Z;
 
-  for (;;) {
+  while (true) {
     if ((uint32_t)x0 < Framebuffer->Width &&
         (uint32_t)y0 < Framebuffer->Height) {
       const size_t pixelIndex = (size_t)y0 * Framebuffer->Width + (size_t)x0;
@@ -91,12 +95,17 @@ void drawLine(const Framebuffer* const Framebuffer, vec3 V0, vec3 V1,
 
 void drawTriangle(const Framebuffer* Framebuffer, vec3 V0, vec3 V1, vec3 V2,
                   const uint32_t Color) {
+  vec3 norm0, norm1, norm2;
+  ndcToScreenNormalized(V0, &norm0);
+  ndcToScreenNormalized(V1, &norm1);
+  ndcToScreenNormalized(V2, &norm2);
+
   const vec2 pixelV0 =
-      MAKE_VEC2(V0.X * Framebuffer->Width, V0.Y * Framebuffer->Height);
+      MAKE_VEC2(norm0.X * Framebuffer->Width, norm0.Y * Framebuffer->Height);
   const vec2 pixelV1 =
-      MAKE_VEC2(V1.X * Framebuffer->Width, V1.Y * Framebuffer->Height);
+      MAKE_VEC2(norm1.X * Framebuffer->Width, norm1.Y * Framebuffer->Height);
   const vec2 pixelV2 =
-      MAKE_VEC2(V2.X * Framebuffer->Width, V2.Y * Framebuffer->Height);
+      MAKE_VEC2(norm2.X * Framebuffer->Width, norm2.Y * Framebuffer->Height);
 
   const float area = edgeFunction(pixelV0, pixelV1, pixelV2);
 
@@ -141,7 +150,7 @@ void drawTriangle(const Framebuffer* Framebuffer, vec3 V0, vec3 V1, vec3 V2,
         const float b1 = w1 * areaInv;
         const float b2 = w2 * areaInv;
 
-        const float depth = b0 * V0.Z + b1 * V1.Z + b2 * V2.Z;
+        const float depth = b0 * norm0.Z + b1 * norm1.Z + b2 * norm2.Z;
         const size_t pixelIndex = y * Framebuffer->Width + x;
 
         if (depth < Framebuffer->DepthBuffer[pixelIndex]) {
@@ -186,12 +195,7 @@ void drawModel(const Framebuffer* Framebuffer, const Model* Model,
     vec3 ndc2 =
         MAKE_VEC3(clip2.X / clip2.W, clip2.Y / clip2.W, clip2.Z / clip2.W);
 
-    vec3 norm0, norm1, norm2;
-    ndcToScreenNormalized(ndc0, &norm0);
-    ndcToScreenNormalized(ndc1, &norm1);
-    ndcToScreenNormalized(ndc2, &norm2);
-
-    drawTriangle(Framebuffer, norm0, norm1, norm2, Model->Colors[i / 3]);
+    drawTriangle(Framebuffer, ndc0, ndc1, ndc2, Model->Colors[i / 3]);
   }
 }
 
@@ -221,13 +225,8 @@ void drawModelMesh(const Framebuffer* Framebuffer, const Model* Model,
     vec3 ndc2 =
         MAKE_VEC3(clip2.X / clip2.W, clip2.Y / clip2.W, clip2.Z / clip2.W);
 
-    vec3 norm0, norm1, norm2;
-    ndcToScreenNormalized(ndc0, &norm0);
-    ndcToScreenNormalized(ndc1, &norm1);
-    ndcToScreenNormalized(ndc2, &norm2);
-
-    drawLine(Framebuffer, norm0, norm1, Color);
-    drawLine(Framebuffer, norm1, norm2, Color);
-    drawLine(Framebuffer, norm2, norm0, Color);
+    drawLine(Framebuffer, ndc0, ndc1, Color);
+    drawLine(Framebuffer, ndc1, ndc2, Color);
+    drawLine(Framebuffer, ndc2, ndc0, Color);
   }
 }
