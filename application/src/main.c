@@ -31,31 +31,13 @@ int main(const int argc, char* argv[]) {
   initializeTimeQuery(&timeQuery);
 
   while (!window->ShouldClose) {
-    const float currentTime = getElapsedTime(&timeQuery);
 
     peekWindowMessages(window);
     clearColorBuffer(&window->Framebuffer, 0x00000000);
     clearDepthBuffer(&window->Framebuffer, 1.0f);
 
-    constexpr float cameraDistanceMultiplier = 1.2f;
-    const float aspect =
-        (float)window->Framebuffer.Width / (float)window->Framebuffer.Height;
-    const mat4 projectionMatrix = makePerspectiveProjectionMatrix(
-        70.0f * DegToRad, aspect, 0.1f,
-        extent * 2.0f * cameraDistanceMultiplier);
-    const vec3 eye = MAKE_VEC3(0.0f, 0.0f, extent * cameraDistanceMultiplier);
-    const vec3 sceneCenter = MAKE_VEC3(0.0f, 0.0f, 0.0f);
-    const vec3 up = MAKE_VEC3(0.0f, 1.0f, 0.0f);
-    const mat4 viewMatrix = makeMat4LookAt(eye, sceneCenter, up);
-
-    const vec3 translation = vec3Scale(modelCenter, -1.0f);
-    mat4 modelMatrix = makeMat4Translation(translation);
-    modelMatrix = mulMat4RotationY(modelMatrix, currentTime);
-
-    const mat4 mvpMatrix =
-        mat4Mul(mat4Mul(projectionMatrix, viewMatrix), modelMatrix);
-
-    drawModel(&window->Framebuffer, &model, mvpMatrix);
+    drawTriangle(&window->Framebuffer, MAKE_VEC3(-0.5f, -0.5f, 0),
+                 MAKE_VEC3(0.5f, -0.5f, 0), MAKE_VEC3(0, 0.5f, 0), 0xFFFF0000);
     presentWindow(window);
   }
 
