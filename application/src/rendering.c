@@ -70,7 +70,8 @@ void drawLine(const Framebuffer* const Framebuffer, vec3 V0, vec3 V1,
     if ((uint32_t)x0 < Framebuffer->Width &&
         (uint32_t)y0 < Framebuffer->Height) {
       const size_t pixelIndex = (size_t)y0 * Framebuffer->Width + (size_t)x0;
-      if (depth <= Framebuffer->DepthBuffer[pixelIndex]) {
+      if (depth < Framebuffer->DepthBuffer[pixelIndex] && depth >= -1.0f &&
+          depth <= 1.0f) {
         Framebuffer->DepthBuffer[pixelIndex] = depth;
         Framebuffer->ColorBuffer[pixelIndex] = Color;
       }
@@ -153,7 +154,10 @@ void drawTriangle(const Framebuffer* Framebuffer, vec3 V0, vec3 V1, vec3 V2,
         const float depth = b0 * norm0.Z + b1 * norm1.Z + b2 * norm2.Z;
         const size_t pixelIndex = y * Framebuffer->Width + x;
 
-        if (depth < Framebuffer->DepthBuffer[pixelIndex]) {
+        const bool notCulled = depth < Framebuffer->DepthBuffer[pixelIndex] &&
+                               depth >= -1.0f && depth <= 1.0f;
+
+        if (notCulled) {
           Framebuffer->DepthBuffer[pixelIndex] = depth;
           Framebuffer->ColorBuffer[pixelIndex] = Color;
         }
