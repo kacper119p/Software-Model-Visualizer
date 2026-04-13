@@ -22,17 +22,31 @@ struct TestEntry {
   TestResult TestResult;
 };
 
-#define ASSERT_TRUE(cond)                                                      \
+#define ASSERT_TRUE(condition)                                                 \
   do {                                                                         \
-    if (!(cond)) {                                                             \
+    if (!(condition)) {                                                        \
       _Test_Data_->TestResult = TestResult_Failure;                            \
       printf(ANSI_RED                                                          \
              "ASSERTION FAILED" ANSI_RESET                                     \
              ": %s:%d:\n Expected condition: (%s) to evaluate to " ANSI_GREEN  \
              "true" ANSI_RESET ", but was " ANSI_RED "false" ANSI_RESET ".\n", \
-             __FILE__, __LINE__, #cond);                                       \
+             __FILE__, __LINE__, #condition);                                  \
       return;                                                                  \
     }                                                                          \
+  } while (0)
+
+#define ASSERT_FALSE(condition)                                                \
+  do {                                                                         \
+    if (!!(condition))) {                                                      \
+        _Test_Data_->TestResult = TestResult_Failure;                          \
+        printf(ANSI_RED                                                        \
+               "ASSERTION FAILED" ANSI_RESET                                   \
+               ": %s:%d:\n Expected condition: (%s) to evaluate to " ANSI_RED  \
+               "false" ANSI_RESET ", but was " ANSI_GREEN "true" ANSI_RESET    \
+               ".\n",                                                          \
+               __FILE__, __LINE__, #condition);                                \
+        return;                                                                \
+      }                                                                        \
   } while (0)
 
 #define _ASSERT_EQUAL_INT_(Actual, Expected, Type, Format)                     \
