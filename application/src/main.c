@@ -2,15 +2,14 @@
 
 #include <time.h>
 
-#include "cglm/affine.h"
-#include "cglm/cam.h"
+#include "appWindow.h"
 #include "rendering.h"
 #include "timeQuery.h"
-#include "window.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 
-int main(int argc, char* argv[]) {
+int main(const int argc, char* argv[]) {
   if (argc != 2) {
     fprintf(stderr,
             "Error: Invalid number of arguments.\n"
@@ -22,48 +21,45 @@ int main(int argc, char* argv[]) {
   Model model;
   vec3 modelCenter;
   float extent;
-  LoadModel(argv[1], &model, modelCenter, &extent);
+  loadModel(argv[1], &model, &modelCenter, &extent);
 
   srand(time(nullptr));
 
-  Window* window = createWindow();
+  AppWindow* window = createWindow();
 
   TimeQuery timeQuery;
   initializeTimeQuery(&timeQuery);
 
   while (!window->ShouldClose) {
     const float currentTime = getElapsedTime(&timeQuery);
+
     peekWindowMessages(window);
     clearColorBuffer(&window->Framebuffer, 0x00000000);
     clearDepthBuffer(&window->Framebuffer, 1.0f);
-    mat4 projectionMatrix;
+
     constexpr float cameraDistanceMultiplier = 1.2f;
     const float aspect =
         (float)window->Framebuffer.Width / (float)window->Framebuffer.Height;
-    glm_perspective(glm_rad(70.0f), aspect, 0.1f,
-                    extent * 2.0f * cameraDistanceMultiplier, projectionMatrix);
-    mat4 viewMatrix;
-    vec3 eye = {0.0f, 0.0f, extent * cameraDistanceMultiplier};
-    vec3 sceneCenter = {0.0f, 0.0f, 0.0f};
-    vec3 up = {0.0f, 1.0f, 0.0f};
-    glm_lookat(eye, sceneCenter, up, viewMatrix);
+    const mat4 projectionMatrix = makePerspectiveProjectionMatrix(
+        70.0f * DegToRad, aspect, 0.1f,
+        extent * 2.0f * cameraDistanceMultiplier);
+    const vec3 eye = MAKE_VEC3(0.0f, 0.0f, extent * cameraDistanceMultiplier);
+    const vec3 sceneCenter = MAKE_VEC3(0.0f, 0.0f, 0.0f);
+    const vec3 up = MAKE_VEC3(0.0f, 1.0f, 0.0f);
+    const mat4 viewMatrix = makeMat4LookAt(eye, sceneCenter, up);
 
-    mat4 modelMatrix;
-    vec3 translation;
-    glm_vec3_scale(modelCenter, -1.0f, translation);
-    glm_translate_make(modelMatrix, translation);
-    glm_rotate(modelMatrix, currentTime, (vec3){0.0f, 1.0f, 0.0f});
+    const vec3 translation = vec3Scale(modelCenter, -1.0f);
+    mat4 modelMatrix = makeMat4Translation(translation);
+    modelMatrix = mulMat4RotationY(modelMatrix, currentTime);
 
-    mat4 vpMatrix;
-    glm_mat4_mul(projectionMatrix, viewMatrix, vpMatrix);
-    mat4 mvpMatrix;
-    glm_mat4_mul(vpMatrix, modelMatrix, mvpMatrix);
+    const mat4 mvpMatrix =
+        mat4Mul(mat4Mul(projectionMatrix, viewMatrix), modelMatrix);
 
     drawModel(&window->Framebuffer, &model, mvpMatrix);
     presentWindow(window);
   }
 
-  DestroyModel(&model);
-  destroyWindow(window);
-  return 0;
+  destroyModel(&model);
+  destroyWindow(&window);
+  return EXIT_SUCCESS;
 }

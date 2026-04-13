@@ -1,6 +1,9 @@
-#ifndef MODEL_H
-#define MODEL_H
-#include "cglm/ivec3.h"
+#ifndef SOFTWARE_MODEL_VISUALIZER_MODEL_H
+#define SOFTWARE_MODEL_VISUALIZER_MODEL_H
+#include "graphicsMath.h"
+
+#include <stddef.h>
+#include <stdint.h>
 
 typedef struct Model {
   vec3* Vertices;
@@ -11,8 +14,8 @@ typedef struct Model {
   uint32_t* Colors;
 } Model;
 
-bool LoadModel(const char* FilePath, Model* Destination, vec3 Center,
+bool loadModel(const char* FilePath, Model* Destination, vec3* Center,
                float* Extent);
-void DestroyModel(const Model* Model);
+void destroyModel(const Model* Model);
 
-#endif // MODEL_H
+#endif // SOFTWARE_MODEL_VISUALIZER_MODEL_H

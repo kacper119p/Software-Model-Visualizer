@@ -268,32 +268,53 @@ GRAPHICS_MATH_INLINE float vec4Dist(const vec4 A, const vec4 B) {
 GRAPHICS_MATH_INLINE void mat4Copy(const mat4 Src, mat4* Dst) { *Dst = Src; }
 
 GRAPHICS_MATH_INLINE mat4 mat4Add(const mat4 A, const mat4 B) {
-  mat4 R;
-  for (int i = 0; i < 16; ++i)
-    R.ValuePtr[i] = A.ValuePtr[i] + B.ValuePtr[i];
-  return R;
+  return (mat4){
+      .ValuePtr = {
+          A.ValuePtr[0] + B.ValuePtr[0], A.ValuePtr[1] + B.ValuePtr[1],
+          A.ValuePtr[2] + B.ValuePtr[2], A.ValuePtr[3] + B.ValuePtr[3],
+          A.ValuePtr[4] + B.ValuePtr[4], A.ValuePtr[5] + B.ValuePtr[5],
+          A.ValuePtr[6] + B.ValuePtr[6], A.ValuePtr[7] + B.ValuePtr[7],
+          A.ValuePtr[8] + B.ValuePtr[8], A.ValuePtr[9] + B.ValuePtr[9],
+          A.ValuePtr[10] + B.ValuePtr[10], A.ValuePtr[11] + B.ValuePtr[11],
+          A.ValuePtr[12] + B.ValuePtr[12], A.ValuePtr[13] + B.ValuePtr[13],
+          A.ValuePtr[14] + B.ValuePtr[14], A.ValuePtr[15] + B.ValuePtr[15]}};
 }
 
 GRAPHICS_MATH_INLINE mat4 mat4Sub(const mat4 A, const mat4 B) {
-  mat4 R;
-  for (int i = 0; i < 16; ++i)
-    R.ValuePtr[i] = A.ValuePtr[i] - B.ValuePtr[i];
-  return R;
+  return (mat4){
+      .ValuePtr = {
+          A.ValuePtr[0] - B.ValuePtr[0], A.ValuePtr[1] - B.ValuePtr[1],
+          A.ValuePtr[2] - B.ValuePtr[2], A.ValuePtr[3] - B.ValuePtr[3],
+          A.ValuePtr[4] - B.ValuePtr[4], A.ValuePtr[5] - B.ValuePtr[5],
+          A.ValuePtr[6] - B.ValuePtr[6], A.ValuePtr[7] - B.ValuePtr[7],
+          A.ValuePtr[8] - B.ValuePtr[8], A.ValuePtr[9] - B.ValuePtr[9],
+          A.ValuePtr[10] - B.ValuePtr[10], A.ValuePtr[11] - B.ValuePtr[11],
+          A.ValuePtr[12] - B.ValuePtr[12], A.ValuePtr[13] - B.ValuePtr[13],
+          A.ValuePtr[14] - B.ValuePtr[14], A.ValuePtr[15] - B.ValuePtr[15]}};
 }
 
 GRAPHICS_MATH_INLINE mat4 mat4Scale(const mat4 A, const float Scalar) {
-  mat4 R;
-  for (int i = 0; i < 16; ++i)
-    R.ValuePtr[i] = A.ValuePtr[i] * Scalar;
-  return R;
+  return (mat4){.ValuePtr = {A.ValuePtr[0] * Scalar, A.ValuePtr[1] * Scalar,
+                             A.ValuePtr[2] * Scalar, A.ValuePtr[3] * Scalar,
+                             A.ValuePtr[4] * Scalar, A.ValuePtr[5] * Scalar,
+                             A.ValuePtr[6] * Scalar, A.ValuePtr[7] * Scalar,
+                             A.ValuePtr[8] * Scalar, A.ValuePtr[9] * Scalar,
+                             A.ValuePtr[10] * Scalar, A.ValuePtr[11] * Scalar,
+                             A.ValuePtr[12] * Scalar, A.ValuePtr[13] * Scalar,
+                             A.ValuePtr[14] * Scalar, A.ValuePtr[15] * Scalar}};
 }
 
 GRAPHICS_MATH_INLINE mat4 mat4Div(const mat4 A, const float Scalar) {
   const float inverse = 1.0f / Scalar;
-  mat4 R;
-  for (int i = 0; i < 16; ++i)
-    R.ValuePtr[i] = A.ValuePtr[i] * inverse;
-  return R;
+  return (mat4){.ValuePtr = {A.ValuePtr[0] * inverse, A.ValuePtr[1] * inverse,
+                             A.ValuePtr[2] * inverse, A.ValuePtr[3] * inverse,
+                             A.ValuePtr[4] * inverse, A.ValuePtr[5] * inverse,
+                             A.ValuePtr[6] * inverse, A.ValuePtr[7] * inverse,
+                             A.ValuePtr[8] * inverse, A.ValuePtr[9] * inverse,
+                             A.ValuePtr[10] * inverse, A.ValuePtr[11] * inverse,
+                             A.ValuePtr[12] * inverse, A.ValuePtr[13] * inverse,
+                             A.ValuePtr[14] * inverse,
+                             A.ValuePtr[15] * inverse}};
 }
 
 GRAPHICS_MATH_INLINE mat4 mat4Mul(const mat4 A, const mat4 B) {
@@ -452,6 +473,16 @@ GRAPHICS_MATH_INLINE mat4 mat4AffineInverse(const mat4 M) {
                         1.0f,
                     },
                 }};
+}
+
+GRAPHICS_MATH_INLINE mat4 mat4Transpose(const mat4 M) {
+  return (mat4){
+      .Value = {
+          {M.Value[0][0], M.Value[1][0], M.Value[2][0], M.Value[3][0]},
+          {M.Value[0][1], M.Value[1][1], M.Value[2][1], M.Value[3][1]},
+          {M.Value[0][2], M.Value[1][2], M.Value[2][2], M.Value[3][2]},
+          {M.Value[0][3], M.Value[1][3], M.Value[2][3], M.Value[3][3]},
+      }};
 }
 
 /*******************************************************************************

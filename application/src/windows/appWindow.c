@@ -1,12 +1,12 @@
-#include "window.h"
+#include "appWindow.h"
 
 #include <assert.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <windows.h>
 
-static void resizeFramebuffer(Framebuffer* Framebuffer, uint32_t const Width,
-                              uint32_t const Height) {
+static void resizeFramebuffer(Framebuffer* const Framebuffer,
+                              uint32_t const Width, uint32_t const Height) {
 
   if (Framebuffer->Width == Width && Framebuffer->Height == Height) {
     return;
@@ -58,7 +58,7 @@ static LRESULT CALLBACK windowProcedure(HWND WindowHandle, const UINT Message,
   switch (Message) {
   case WM_CREATE: {
     const CREATESTRUCT* createStruct = (CREATESTRUCT*)LParam;
-    Window* window = createStruct->lpCreateParams;
+    AppWindow* window = createStruct->lpCreateParams;
     window->ShouldClose = false;
     window->WindowHandle = WindowHandle;
 
@@ -71,14 +71,16 @@ static LRESULT CALLBACK windowProcedure(HWND WindowHandle, const UINT Message,
 
     const uint32_t width = clientRect.right - clientRect.left;
     const uint32_t height = clientRect.bottom - clientRect.top;
-    Window* windowPtr = (Window*)GetWindowLongPtr(WindowHandle, GWLP_USERDATA);
+    AppWindow* windowPtr =
+        (AppWindow*)GetWindowLongPtr(WindowHandle, GWLP_USERDATA);
     resizeFramebuffer(&windowPtr->Framebuffer, width, height);
 
     return 0;
   }
   case WM_CLOSE:
   case WM_DESTROY: {
-    Window* windowPtr = (Window*)GetWindowLongPtr(WindowHandle, GWLP_USERDATA);
+    AppWindow* windowPtr =
+        (AppWindow*)GetWindowLongPtr(WindowHandle, GWLP_USERDATA);
     windowPtr->ShouldClose = true;
     PostQuitMessage(0);
     return 0;
@@ -89,7 +91,7 @@ static LRESULT CALLBACK windowProcedure(HWND WindowHandle, const UINT Message,
   }
 }
 
-void presentWindow(const Window* const Window) {
+void presentWindow(const AppWindow* const Window) {
   HDC deviceContext = GetDC(Window->WindowHandle);
   StretchDIBits(deviceContext, 0, 0, Window->Framebuffer.Width,
                 Window->Framebuffer.Height, 0, 0, Window->Framebuffer.Width,
@@ -98,7 +100,7 @@ void presentWindow(const Window* const Window) {
   ReleaseDC(Window->WindowHandle, deviceContext);
 }
 
-Window* createWindow() {
+AppWindow* createWindow() {
   HINSTANCE instance = GetModuleHandle(NULL);
   WNDCLASSEX windowClass = {0};
 
@@ -117,7 +119,7 @@ Window* createWindow() {
   assert(registerClassResult);
 #endif
 
-  Window* window = calloc(1, sizeof(Window));
+  AppWindow* window = calloc(1, sizeof(AppWindow));
   assert(window);
 
   constexpr int32_t width = 640;
@@ -142,20 +144,22 @@ Window* createWindow() {
   return window;
 }
 
-void destroyWindow(Window* Window) {
-  if (Window->Framebuffer.ColorBuffer) {
-    VirtualFree(Window->Framebuffer.ColorBuffer, 0, MEM_RELEASE);
+void destroyWindow(AppWindow** const Window) {
+  AppWindow* window = *Window;
+  if (window->Framebuffer.ColorBuffer) {
+    VirtualFree(window->Framebuffer.ColorBuffer, 0, MEM_RELEASE);
   }
-  if (Window->Framebuffer.DepthBuffer) {
-    VirtualFree(Window->Framebuffer.DepthBuffer, 0, MEM_RELEASE);
+  if (window->Framebuffer.DepthBuffer) {
+    VirtualFree(window->Framebuffer.DepthBuffer, 0, MEM_RELEASE);
   }
-  if (Window->WindowHandle) {
-    DestroyWindow(Window->WindowHandle);
+  if (window->WindowHandle) {
+    DestroyWindow(window->WindowHandle);
   }
-  free(Window);
+  free(window);
+  *Window = nullptr;
 }
 
-void peekWindowMessages(Window* Window) {
+void peekWindowMessages(AppWindow* const Window) {
   MSG message;
   while (PeekMessage(&message, NULL, 0, 0, PM_REMOVE)) {
     if (message.message == WM_QUIT) {
