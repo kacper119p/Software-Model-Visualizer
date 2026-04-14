@@ -2,6 +2,17 @@
 
 #include <stdlib.h>
 
+static inline uint32_t lerpColor(const uint32_t A, const uint32_t B,
+                                 const uint32_t C, const float w0,
+                                 const float w1, const float w2) {
+  uint8_t r = (uint8_t)((((A >> 16) & 0xFF) * w0) + (((B >> 16) & 0xFF) * w1) +
+                        (((C >> 16) & 0xFF) * w2));
+  uint8_t g = (uint8_t)(((A >> 8) & 0xFF) * w0 + ((B >> 8) & 0xFF) * w1 +
+                        ((C >> 8) & 0xFF) * w2);
+  uint8_t b = (uint8_t)((A & 0xFF) * w0 + (B & 0xFF) * w1 + (C & 0xFF) * w2);
+  return (uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b;
+}
+
 static inline float edgeFunction(const vec2 A, const vec2 B, const vec2 C) {
   return (A.X - B.X) * (C.Y - A.Y) - (A.Y - B.Y) * (C.X - A.X);
 }
@@ -95,7 +106,7 @@ void drawLine(const Framebuffer* const Framebuffer, vec3 V0, vec3 V1,
 }
 
 void drawTriangle(const Framebuffer* Framebuffer, vec3 V0, vec3 V1, vec3 V2,
-                  const uint32_t Color) {
+                  const uint32_t) {
   vec3 norm0, norm1, norm2;
   ndcToScreenNormalized(V0, &norm0);
   ndcToScreenNormalized(V1, &norm1);
@@ -113,6 +124,10 @@ void drawTriangle(const Framebuffer* Framebuffer, vec3 V0, vec3 V1, vec3 V2,
   if (area <= 0.0f) {
     return;
   }
+
+  uint32_t color0 = 0x00FF0000;
+  uint32_t color1 = 0x0000FF00;
+  uint32_t color2 = 0x000000FF;
 
   const float areaInv = 1.0f / area;
 
@@ -159,7 +174,8 @@ void drawTriangle(const Framebuffer* Framebuffer, vec3 V0, vec3 V1, vec3 V2,
 
         if (notCulled) {
           Framebuffer->DepthBuffer[pixelIndex] = depth;
-          Framebuffer->ColorBuffer[pixelIndex] = Color;
+          Framebuffer->ColorBuffer[pixelIndex] =
+              lerpColor(color0, color1, color2, b0, b1, b2);
         }
       }
       w0 += stepXW0;
