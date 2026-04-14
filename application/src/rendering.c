@@ -3,13 +3,13 @@
 #include <stdlib.h>
 
 static inline uint32_t lerpColor(const uint32_t A, const uint32_t B,
-                                 const uint32_t C, const float w0,
-                                 const float w1, const float w2) {
-  uint8_t r = (uint8_t)((((A >> 16) & 0xFF) * w0) + (((B >> 16) & 0xFF) * w1) +
-                        (((C >> 16) & 0xFF) * w2));
-  uint8_t g = (uint8_t)(((A >> 8) & 0xFF) * w0 + ((B >> 8) & 0xFF) * w1 +
-                        ((C >> 8) & 0xFF) * w2);
-  uint8_t b = (uint8_t)((A & 0xFF) * w0 + (B & 0xFF) * w1 + (C & 0xFF) * w2);
+                                 const uint32_t C, const float W0,
+                                 const float W1, const float W2) {
+  uint8_t r = (uint8_t)((((A >> 16) & 0xFF) * W0) + (((B >> 16) & 0xFF) * W1) +
+                        (((C >> 16) & 0xFF) * W2));
+  uint8_t g = (uint8_t)(((A >> 8) & 0xFF) * W0 + ((B >> 8) & 0xFF) * W1 +
+                        ((C >> 8) & 0xFF) * W2);
+  uint8_t b = (uint8_t)((A & 0xFF) * W0 + (B & 0xFF) * W1 + (C & 0xFF) * W2);
   return (uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b;
 }
 
