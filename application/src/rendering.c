@@ -147,6 +147,8 @@ void drawTriangle(const Framebuffer* Framebuffer, vec3 V0, vec3 V1, vec3 V2,
   const bool isTopLeft2 =
       (stepXW2 > 0.0f) || (stepXW2 == 0.0f && stepYW2 < 0.0f);
 
+  size_t rowStartIndex = minY * Framebuffer->Width;
+
   for (int32_t y = minY; y < maxY; ++y) {
     float w0 = w0Row;
     float w1 = w1Row;
@@ -181,6 +183,7 @@ void drawTriangle(const Framebuffer* Framebuffer, vec3 V0, vec3 V1, vec3 V2,
     w0Row += stepYW0;
     w1Row += stepYW1;
     w2Row += stepYW2;
+    rowStartIndex += Framebuffer->Width;
   }
 }
 
