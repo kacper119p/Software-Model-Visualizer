@@ -18,16 +18,16 @@ int main(const int argc, char* argv[]) {
     return EXIT_FAILURE;
   }
 
-  Model model;
+  struct Model model;
   struct Vec3 modelCenter;
   float extent;
   loadModel(argv[1], &model, &modelCenter, &extent);
 
   srand(time(nullptr));
 
-  AppWindow* window = createWindow();
+  struct AppWindow* window = createWindow();
 
-  TimeQuery timeQuery;
+  struct TimeQuery timeQuery;
   initializeTimeQuery(&timeQuery);
 
   while (!window->ShouldClose) {

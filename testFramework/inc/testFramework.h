@@ -13,13 +13,13 @@ typedef struct TestEntry TestEntry;
 
 typedef void (*TestFunction)(TestEntry*);
 
-typedef enum TestResult { TestResult_Success, TestResult_Failure } TestResult;
+enum TestResult { TestResult_Success, TestResult_Failure };
 
 struct TestEntry {
   const char* const Name;
   const char* const FileName;
   TestFunction Function;
-  TestResult TestResult;
+  enum TestResult TestResult;
 };
 
 #define ASSERT_TRUE(condition)                                                 \

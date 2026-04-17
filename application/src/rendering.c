@@ -14,7 +14,7 @@ static inline void ndcToScreenNormalized(const struct Vec3 Ndc,
   Normalized->Z = (Ndc.Z + 1.0f) * 0.5f;
 }
 
-void clearColorBuffer(const Framebuffer* const Framebuffer,
+void clearColorBuffer(const struct Framebuffer* const Framebuffer,
                       const uint32_t ClearValue) {
   uint32_t* pixel = Framebuffer->ColorBuffer;
   const uint32_t* const end =
@@ -26,7 +26,7 @@ void clearColorBuffer(const Framebuffer* const Framebuffer,
   }
 }
 
-void clearDepthBuffer(const Framebuffer* const Framebuffer,
+void clearDepthBuffer(const struct Framebuffer* const Framebuffer,
                       const float ClearValue) {
   float* pixel = Framebuffer->DepthBuffer;
   const float* const end =
@@ -37,7 +37,7 @@ void clearDepthBuffer(const Framebuffer* const Framebuffer,
   }
 }
 
-void drawPixel(const Framebuffer* const Framebuffer, const uint32_t X,
+void drawPixel(const struct Framebuffer* const Framebuffer, const uint32_t X,
                const uint32_t Y, const uint32_t Color, const float Depth) {
   if (X >= Framebuffer->Width || Y >= Framebuffer->Height) {
     return;
@@ -47,7 +47,7 @@ void drawPixel(const Framebuffer* const Framebuffer, const uint32_t X,
   Framebuffer->DepthBuffer[pixelIndex] = Depth;
 }
 
-void drawLine(const Framebuffer* const Framebuffer, const struct Vec3 V0,
+void drawLine(const struct Framebuffer* const Framebuffer, const struct Vec3 V0,
               const struct Vec3 V1, const uint32_t Color) {
   struct Vec3 norm0, norm1;
   ndcToScreenNormalized(V0, &norm0);
@@ -96,7 +96,7 @@ void drawLine(const Framebuffer* const Framebuffer, const struct Vec3 V0,
   }
 }
 
-void drawTriangle(const Framebuffer* Framebuffer, const struct Vec3 V0,
+void drawTriangle(const struct Framebuffer* Framebuffer, const struct Vec3 V0,
                   const struct Vec3 V1, const struct Vec3 V2,
                   const uint32_t Color) {
   struct Vec3 norm0;
@@ -193,7 +193,7 @@ void drawTriangle(const Framebuffer* Framebuffer, const struct Vec3 V0,
   }
 }
 
-void drawModel(const Framebuffer* Framebuffer, const Model* Model,
+void drawModel(const struct Framebuffer* Framebuffer, const struct Model* Model,
                const struct Mat4 Transform) {
   for (size_t i = 0; i < Model->IndexCount; i += 3) {
     const uint32_t index0 = Model->Indices[i];
@@ -224,8 +224,9 @@ void drawModel(const Framebuffer* Framebuffer, const Model* Model,
   }
 }
 
-void drawModelMesh(const Framebuffer* Framebuffer, const Model* Model,
-                   const struct Mat4 Transform, const uint32_t Color) {
+void drawModelMesh(const struct Framebuffer* Framebuffer,
+                   const struct Model* Model, const struct Mat4 Transform,
+                   const uint32_t Color) {
   for (size_t i = 0; i < Model->IndexCount; i += 3) {
     const uint32_t index0 = Model->Indices[i];
     const uint32_t index1 = Model->Indices[i + 1];

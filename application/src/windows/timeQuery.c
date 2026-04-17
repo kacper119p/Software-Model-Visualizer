@@ -3,12 +3,12 @@
 
 #include <profileapi.h>
 
-void initializeTimeQuery(TimeQuery* TimeQuery) {
+void initializeTimeQuery(struct TimeQuery* TimeQuery) {
   QueryPerformanceFrequency(&TimeQuery->Frequency);
   QueryPerformanceCounter(&TimeQuery->Start);
 }
 
-float getElapsedTime(const TimeQuery* const TimeQuery) {
+float getElapsedTime(const struct TimeQuery* const TimeQuery) {
   LARGE_INTEGER end;
   QueryPerformanceCounter(&end);
 

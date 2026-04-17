@@ -100,7 +100,7 @@ static inline void calculateAabb(const struct Vec3* const Vertices,
   vec3Copy(max, Max);
 }
 
-bool loadModel(const char* const FilePath, Model* const Destination,
+bool loadModel(const char* const FilePath, struct Model* const Destination,
                struct Vec3* const Center, float* const Extent) {
   assert(Destination != nullptr);
   constexpr cgltf_options options = {0};
@@ -270,7 +270,7 @@ bool loadModel(const char* const FilePath, Model* const Destination,
   return true;
 }
 
-void destroyModel(const Model* const Model) {
+void destroyModel(const struct Model* const Model) {
   free(Model->Vertices);
   free(Model->Indices);
   free(Model->Normals);
