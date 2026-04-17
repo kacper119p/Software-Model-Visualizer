@@ -135,10 +135,19 @@ void drawTriangle(const Framebuffer* Framebuffer, vec3 V0, vec3 V1, vec3 V2,
   const float stepXW2 = pixelV1.Y - pixelV0.Y;
   const float stepYW2 = pixelV0.X - pixelV1.X;
 
-  const vec2 initialPixel = MAKE_VEC2((float)minX, (float)minY);
+  const vec2 initialPixel = MAKE_VEC2((float)minX + 0.5f, (float)minY + 0.5f);
   float w0Row = edgeFunction(pixelV1, pixelV2, initialPixel);
   float w1Row = edgeFunction(pixelV2, pixelV0, initialPixel);
   float w2Row = edgeFunction(pixelV0, pixelV1, initialPixel);
+
+  const bool isTopLeft0 =
+      (stepXW0 > 0.0f) || (stepXW0 == 0.0f && stepYW0 < 0.0f);
+  const bool isTopLeft1 =
+      (stepXW1 > 0.0f) || (stepXW1 == 0.0f && stepYW1 < 0.0f);
+  const bool isTopLeft2 =
+      (stepXW2 > 0.0f) || (stepXW2 == 0.0f && stepYW2 < 0.0f);
+
+  size_t rowStartIndex = minY * Framebuffer->Width;
 
   for (int32_t y = minY; y < maxY; ++y) {
     float w0 = w0Row;
@@ -146,7 +155,11 @@ void drawTriangle(const Framebuffer* Framebuffer, vec3 V0, vec3 V1, vec3 V2,
     float w2 = w2Row;
 
     for (int32_t x = minX; x < maxX; ++x) {
-      if (w0 > 0.0f && w1 > 0.0f && w2 > 0.0f) {
+      const bool pass0 = (w0 > 0.0f) || (w0 == 0.0f && isTopLeft0);
+      const bool pass1 = (w1 > 0.0f) || (w1 == 0.0f && isTopLeft1);
+      const bool pass2 = (w2 > 0.0f) || (w2 == 0.0f && isTopLeft2);
+
+      if (pass0 && pass1 && pass2) {
         const float b0 = w0 * areaInv;
         const float b1 = w1 * areaInv;
         const float b2 = w2 * areaInv;
@@ -170,6 +183,7 @@ void drawTriangle(const Framebuffer* Framebuffer, vec3 V0, vec3 V1, vec3 V2,
     w0Row += stepYW0;
     w1Row += stepYW1;
     w2Row += stepYW2;
+    rowStartIndex += Framebuffer->Width;
   }
 }
 
