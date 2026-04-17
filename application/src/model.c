@@ -71,19 +71,28 @@ static inline uint32_t getRandomColor() {
   return hsvToRgb(hue, 1.0f, 1.0f);
 }
 
-static inline void calculateAabb(const vec3* const Vertices,
-                                 const size_t VertexCount, vec3* Min,
-                                 vec3* Max) {
-  vec3 min = Vertices[0];
-  vec3 max = Vertices[0];
+static inline void calculateAabb(const struct Vec3* const Vertices,
+                                 const size_t VertexCount, struct Vec3* Min,
+                                 struct Vec3* Max) {
+  struct Vec3 min = Vertices[0];
+  struct Vec3 max = Vertices[0];
 
   for (size_t i = 1; i < VertexCount; ++i) {
-    for (size_t j = 0; j < 3; ++j) {
-      if (Vertices[i].ValuePtr[j] < min.ValuePtr[j]) {
-        min.ValuePtr[j] = Vertices[i].ValuePtr[j];
-      } else if (Vertices[i].ValuePtr[j] > max.ValuePtr[j]) {
-        max.ValuePtr[j] = Vertices[i].ValuePtr[j];
-      }
+    const struct Vec3 vertex = Vertices[i];
+    if (vertex.X < min.X) {
+      min.X = vertex.X;
+    } else if (vertex.X > max.X) {
+      max.X = vertex.X;
+    }
+    if (vertex.Y < min.Y) {
+      min.Y = vertex.Y;
+    } else if (vertex.Y > max.Y) {
+      max.Y = vertex.Y;
+    }
+    if (vertex.Z < min.Z) {
+      min.Z = vertex.Z;
+    } else if (vertex.Z > max.Z) {
+      max.Z = vertex.Z;
     }
   }
 
@@ -92,7 +101,7 @@ static inline void calculateAabb(const vec3* const Vertices,
 }
 
 bool loadModel(const char* const FilePath, Model* const Destination,
-               vec3* const Center, float* const Extent) {
+               struct Vec3* const Center, float* const Extent) {
   assert(Destination != nullptr);
   constexpr cgltf_options options = {0};
   cgltf_data* data = nullptr;
@@ -143,12 +152,12 @@ bool loadModel(const char* const FilePath, Model* const Destination,
     return false;
   }
 
-  vec3* const restrict vertices =
-      calloc(Destination->VertexCount, sizeof(vec3));
+  struct Vec3* const restrict vertices =
+      calloc(Destination->VertexCount, sizeof(struct Vec3));
   uint32_t* const restrict indices =
       calloc(Destination->IndexCount, sizeof(uint32_t));
-  vec3* const restrict normals =
-      calloc(Destination->IndexCount / 3, sizeof(vec3));
+  struct Vec3* const restrict normals =
+      calloc(Destination->IndexCount / 3, sizeof(struct Vec3));
   uint32_t* const restrict colors =
       calloc(Destination->IndexCount / 3, sizeof(uint32_t));
 
@@ -172,8 +181,8 @@ bool loadModel(const char* const FilePath, Model* const Destination,
     if (node->mesh == nullptr)
       continue;
 
-    mat4 modelMatrix;
-    cgltf_node_transform_world(node, modelMatrix.ValuePtr);
+    struct Mat4 modelMatrix;
+    cgltf_node_transform_world(node, (cgltf_float*)&modelMatrix);
 
     for (size_t j = 0; j < node->mesh->primitives_count; ++j) {
       const cgltf_primitive* primitive = &node->mesh->primitives[j];
@@ -207,10 +216,10 @@ bool loadModel(const char* const FilePath, Model* const Destination,
       }
 
       for (uint32_t v = 0; v < primitiveVertexCount; ++v) {
-        vec3 localPosition;
-        cgltf_accessor_read_float(positionAccessor, v, localPosition.ValuePtr,
-                                  3);
-        vec4 worldPosition =
+        struct Vec3 localPosition;
+        cgltf_accessor_read_float(positionAccessor, v,
+                                  (cgltf_float*)&localPosition, 3);
+        struct Vec4 worldPosition =
             mat4MulVec4(modelMatrix, MAKE_VEC4(localPosition.X, localPosition.Y,
                                                localPosition.Z, 1.0f));
         vertices[vertexOffset + v] =
@@ -226,14 +235,14 @@ bool loadModel(const char* const FilePath, Model* const Destination,
     const uint32_t index1 = indices[i + 1];
     const uint32_t index2 = indices[i + 2];
 
-    const vec3 v0 = vertices[index0];
-    const vec3 v1 = vertices[index1];
-    const vec3 v2 = vertices[index2];
+    const struct Vec3 v0 = vertices[index0];
+    const struct Vec3 v1 = vertices[index1];
+    const struct Vec3 v2 = vertices[index2];
 
-    const vec3 edge1 = vec3Sub(v1, v0);
-    const vec3 edge2 = vec3Sub(v2, v0);
+    const struct Vec3 edge1 = vec3Sub(v1, v0);
+    const struct Vec3 edge2 = vec3Sub(v2, v0);
 
-    vec3 normal = vec3Cross(edge1, edge2);
+    struct Vec3 normal = vec3Cross(edge1, edge2);
     normals[i / 3] = vec3Normalize(normal);
   }
 
@@ -248,8 +257,8 @@ bool loadModel(const char* const FilePath, Model* const Destination,
 
   cgltf_free(data);
 
-  vec3 aabbMin;
-  vec3 aabbMax;
+  struct Vec3 aabbMin;
+  struct Vec3 aabbMax;
   calculateAabb(Destination->Vertices, Destination->VertexCount, &aabbMin,
                 &aabbMax);
   const float size = vec3Dist(aabbMin, aabbMax);

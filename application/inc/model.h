@@ -6,15 +6,15 @@
 #include <stdint.h>
 
 typedef struct Model {
-  vec3* Vertices;
+  struct Vec3* Vertices;
   size_t VertexCount;
   uint32_t* Indices;
   size_t IndexCount;
-  vec3* Normals;
+  struct Vec3* Normals;
   uint32_t* Colors;
 } Model;
 
-bool loadModel(const char* FilePath, Model* Destination, vec3* Center,
+bool loadModel(const char* FilePath, Model* Destination, struct Vec3* Center,
                float* Extent);
 void destroyModel(const Model* Model);
 
