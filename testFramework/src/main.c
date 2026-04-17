@@ -1,6 +1,7 @@
 #include "testFramework.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #if defined(_WIN32)
 #include <windows.h>
@@ -59,5 +60,5 @@ int main(void) {
     printf("Tests Failed : " ANSI_RED "%zu" ANSI_RESET "\n", failedCount);
   }
 
-  return 0;
+  return failedCount > 0 ? EXIT_FAILURE : EXIT_SUCCESS;
 }
