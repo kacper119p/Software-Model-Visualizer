@@ -1,10 +1,10 @@
 #include "timeQuery.h"
 
-void initializeTimeQuery(TimeQuery* TimeQuery) {
+void initializeTimeQuery(struct TimeQuery* TimeQuery) {
   clock_gettime(CLOCK_MONOTONIC, &TimeQuery->Start);
 }
 
-float getElapsedTime(const TimeQuery* const TimeQuery) {
+float getElapsedTime(const struct TimeQuery* const TimeQuery) {
   struct timespec now;
   clock_gettime(CLOCK_MONOTONIC, &now);
 

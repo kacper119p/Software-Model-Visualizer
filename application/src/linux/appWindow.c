@@ -9,8 +9,8 @@
 static constexpr int32_t windowDefaultWidth = 640;
 static constexpr int32_t windowDefaultHeight = 480;
 
-static void resizeFramebuffer(AppWindow* const Window, const uint32_t Width,
-                              const uint32_t Height) {
+static void resizeFramebuffer(struct AppWindow* const Window,
+                              const uint32_t Width, const uint32_t Height) {
   if (Window->Framebuffer.Width == Width &&
       Window->Framebuffer.Height == Height) {
     return;
@@ -60,14 +60,14 @@ static void resizeFramebuffer(AppWindow* const Window, const uint32_t Width,
   assert(window->Image);
 }
 
-void presentWindow(const AppWindow* Window) {
+void presentWindow(const struct AppWindow* Window) {
   XPutImage(Window->Display, Window->WindowHandle, Window->Gc, Window->Image, 0,
             0, 0, 0, Window->Framebuffer.Width, Window->Framebuffer.Height);
   XFlush(Window->Display);
 }
 
-AppWindow* createWindow() {
-  AppWindow* window = calloc(1, sizeof(AppWindow));
+struct AppWindow* createWindow() {
+  struct AppWindow* window = calloc(1, sizeof(struct AppWindow));
   assert(window);
 
   window->Display = XOpenDisplay(nullptr);
@@ -107,8 +107,8 @@ AppWindow* createWindow() {
   return window;
 }
 
-void destroyWindow(AppWindow** const Window) {
-  AppWindow* const window = *Window;
+void destroyWindow(struct AppWindow** const Window) {
+  struct AppWindow* const window = *Window;
   if (window->Image) {
     window->Image->data = nullptr;
     XDestroyImage(window->Image);
@@ -136,7 +136,7 @@ void destroyWindow(AppWindow** const Window) {
   *Window = nullptr;
 }
 
-void peekWindowMessages(AppWindow* const Window) {
+void peekWindowMessages(struct AppWindow* const Window) {
   const Atom wmDelete = XInternAtom(Window->Display, "WM_DELETE_WINDOW", False);
 
   while (XPending(Window->Display)) {
