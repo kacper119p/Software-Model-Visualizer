@@ -10,7 +10,7 @@
 #include <X11/Xlib.h>
 #endif
 
-typedef struct Framebuffer {
+struct Framebuffer {
   uint32_t* ColorBuffer;
   float* DepthBuffer;
   uint32_t Width;
@@ -18,10 +18,10 @@ typedef struct Framebuffer {
 #ifdef _WIN32
   BITMAPINFO BitmapInfo;
 #endif
-} Framebuffer;
+};
 
-typedef struct appWindow {
-  Framebuffer Framebuffer;
+struct AppWindow {
+  struct Framebuffer Framebuffer;
 #ifdef _WIN32
   HWND WindowHandle;
 #elif __linux__
@@ -31,11 +31,11 @@ typedef struct appWindow {
   XImage* Image;
 #endif
   bool ShouldClose;
-} AppWindow;
+};
 
-void presentWindow(const AppWindow* Window);
-[[nodiscard]] AppWindow* createWindow();
-void destroyWindow(AppWindow** Window);
-void peekWindowMessages(AppWindow* Window);
+void presentWindow(const struct AppWindow* Window);
+[[nodiscard]] struct AppWindow* createWindow();
+void destroyWindow(struct AppWindow** Window);
+void peekWindowMessages(struct AppWindow* Window);
 
 #endif // SOFTWARE_MODEL_VISUALIZER_WINDOW_H

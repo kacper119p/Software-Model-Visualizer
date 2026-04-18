@@ -2,17 +2,19 @@
 
 #include <stdlib.h>
 
-static inline float edgeFunction(const vec2 A, const vec2 B, const vec2 C) {
+static inline float edgeFunction(const struct Vec2 A, const struct Vec2 B,
+                                 const struct Vec2 C) {
   return (A.X - B.X) * (C.Y - A.Y) - (A.Y - B.Y) * (C.X - A.X);
 }
 
-static inline void ndcToScreenNormalized(const vec3 Ndc, vec3* Normalized) {
+static inline void ndcToScreenNormalized(const struct Vec3 Ndc,
+                                         struct Vec3* Normalized) {
   Normalized->X = (Ndc.X + 1.0f) * 0.5f;
   Normalized->Y = (1.0f - Ndc.Y) * 0.5f;
   Normalized->Z = (Ndc.Z + 1.0f) * 0.5f;
 }
 
-void clearColorBuffer(const Framebuffer* const Framebuffer,
+void clearColorBuffer(const struct Framebuffer* const Framebuffer,
                       const uint32_t ClearValue) {
   uint32_t* pixel = Framebuffer->ColorBuffer;
   const uint32_t* const end =
@@ -24,7 +26,7 @@ void clearColorBuffer(const Framebuffer* const Framebuffer,
   }
 }
 
-void clearDepthBuffer(const Framebuffer* const Framebuffer,
+void clearDepthBuffer(const struct Framebuffer* const Framebuffer,
                       const float ClearValue) {
   float* pixel = Framebuffer->DepthBuffer;
   const float* const end =
@@ -35,7 +37,7 @@ void clearDepthBuffer(const Framebuffer* const Framebuffer,
   }
 }
 
-void drawPixel(const Framebuffer* const Framebuffer, const uint32_t X,
+void drawPixel(const struct Framebuffer* const Framebuffer, const uint32_t X,
                const uint32_t Y, const uint32_t Color, const float Depth) {
   if (X >= Framebuffer->Width || Y >= Framebuffer->Height) {
     return;
@@ -45,9 +47,9 @@ void drawPixel(const Framebuffer* const Framebuffer, const uint32_t X,
   Framebuffer->DepthBuffer[pixelIndex] = Depth;
 }
 
-void drawLine(const Framebuffer* const Framebuffer, vec3 V0, vec3 V1,
-              const uint32_t Color) {
-  vec3 norm0, norm1;
+void drawLine(const struct Framebuffer* const Framebuffer, const struct Vec3 V0,
+              const struct Vec3 V1, const uint32_t Color) {
+  struct Vec3 norm0, norm1;
   ndcToScreenNormalized(V0, &norm0);
   ndcToScreenNormalized(V1, &norm1);
 
@@ -94,18 +96,21 @@ void drawLine(const Framebuffer* const Framebuffer, vec3 V0, vec3 V1,
   }
 }
 
-void drawTriangle(const Framebuffer* Framebuffer, vec3 V0, vec3 V1, vec3 V2,
+void drawTriangle(const struct Framebuffer* Framebuffer, const struct Vec3 V0,
+                  const struct Vec3 V1, const struct Vec3 V2,
                   const uint32_t Color) {
-  vec3 norm0, norm1, norm2;
+  struct Vec3 norm0;
+  struct Vec3 norm1;
+  struct Vec3 norm2;
   ndcToScreenNormalized(V0, &norm0);
   ndcToScreenNormalized(V1, &norm1);
   ndcToScreenNormalized(V2, &norm2);
 
-  const vec2 pixelV0 =
+  const struct Vec2 pixelV0 =
       MAKE_VEC2(norm0.X * Framebuffer->Width, norm0.Y * Framebuffer->Height);
-  const vec2 pixelV1 =
+  const struct Vec2 pixelV1 =
       MAKE_VEC2(norm1.X * Framebuffer->Width, norm1.Y * Framebuffer->Height);
-  const vec2 pixelV2 =
+  const struct Vec2 pixelV2 =
       MAKE_VEC2(norm2.X * Framebuffer->Width, norm2.Y * Framebuffer->Height);
 
   const float area = edgeFunction(pixelV0, pixelV1, pixelV2);
@@ -135,7 +140,8 @@ void drawTriangle(const Framebuffer* Framebuffer, vec3 V0, vec3 V1, vec3 V2,
   const float stepXW2 = pixelV1.Y - pixelV0.Y;
   const float stepYW2 = pixelV0.X - pixelV1.X;
 
-  const vec2 initialPixel = MAKE_VEC2((float)minX + 0.5f, (float)minY + 0.5f);
+  const struct Vec2 initialPixel =
+      MAKE_VEC2((float)minX + 0.5f, (float)minY + 0.5f);
   float w0Row = edgeFunction(pixelV1, pixelV2, initialPixel);
   float w1Row = edgeFunction(pixelV2, pixelV0, initialPixel);
   float w2Row = edgeFunction(pixelV0, pixelV1, initialPixel);
@@ -187,60 +193,63 @@ void drawTriangle(const Framebuffer* Framebuffer, vec3 V0, vec3 V1, vec3 V2,
   }
 }
 
-void drawModel(const Framebuffer* Framebuffer, const Model* Model,
-               mat4 Transform) {
+void drawModel(const struct Framebuffer* Framebuffer, const struct Model* Model,
+               const struct Mat4 Transform) {
   for (size_t i = 0; i < Model->IndexCount; i += 3) {
     const uint32_t index0 = Model->Indices[i];
     const uint32_t index1 = Model->Indices[i + 1];
     const uint32_t index2 = Model->Indices[i + 2];
-    vec4 obj0 = MAKE_VEC4(Model->Vertices[index0].X, Model->Vertices[index0].Y,
-                          Model->Vertices[index0].Z, 1.0f);
-    vec4 obj1 = MAKE_VEC4(Model->Vertices[index1].X, Model->Vertices[index1].Y,
-                          Model->Vertices[index1].Z, 1.0f);
-    vec4 obj2 = MAKE_VEC4(Model->Vertices[index2].X, Model->Vertices[index2].Y,
-                          Model->Vertices[index2].Z, 1.0f);
+    const struct Vec4 obj0 =
+        MAKE_VEC4(Model->Vertices[index0].X, Model->Vertices[index0].Y,
+                  Model->Vertices[index0].Z, 1.0f);
+    const struct Vec4 obj1 =
+        MAKE_VEC4(Model->Vertices[index1].X, Model->Vertices[index1].Y,
+                  Model->Vertices[index1].Z, 1.0f);
+    const struct Vec4 obj2 =
+        MAKE_VEC4(Model->Vertices[index2].X, Model->Vertices[index2].Y,
+                  Model->Vertices[index2].Z, 1.0f);
 
-    vec4 clip0, clip1, clip2;
+    const struct Vec4 clip0 = mat4MulVec4(Transform, obj0);
+    const struct Vec4 clip1 = mat4MulVec4(Transform, obj1);
+    const struct Vec4 clip2 = mat4MulVec4(Transform, obj2);
 
-    clip0 = mat4MulVec4(Transform, obj0);
-    clip1 = mat4MulVec4(Transform, obj1);
-    clip2 = mat4MulVec4(Transform, obj2);
-
-    vec3 ndc0 =
+    const struct Vec3 ndc0 =
         MAKE_VEC3(clip0.X / clip0.W, clip0.Y / clip0.W, clip0.Z / clip0.W);
-    vec3 ndc1 =
+    const struct Vec3 ndc1 =
         MAKE_VEC3(clip1.X / clip1.W, clip1.Y / clip1.W, clip1.Z / clip1.W);
-    vec3 ndc2 =
+    const struct Vec3 ndc2 =
         MAKE_VEC3(clip2.X / clip2.W, clip2.Y / clip2.W, clip2.Z / clip2.W);
 
     drawTriangle(Framebuffer, ndc0, ndc1, ndc2, Model->Colors[i / 3]);
   }
 }
 
-void drawModelMesh(const Framebuffer* Framebuffer, const Model* Model,
-                   mat4 Transform, const uint32_t Color) {
+void drawModelMesh(const struct Framebuffer* Framebuffer,
+                   const struct Model* Model, const struct Mat4 Transform,
+                   const uint32_t Color) {
   for (size_t i = 0; i < Model->IndexCount; i += 3) {
     const uint32_t index0 = Model->Indices[i];
     const uint32_t index1 = Model->Indices[i + 1];
     const uint32_t index2 = Model->Indices[i + 2];
-    vec4 obj0 = MAKE_VEC4(Model->Vertices[index0].X, Model->Vertices[index0].Y,
-                          Model->Vertices[index0].Z, 1.0f);
-    vec4 obj1 = MAKE_VEC4(Model->Vertices[index1].X, Model->Vertices[index1].Y,
-                          Model->Vertices[index1].Z, 1.0f);
-    vec4 obj2 = MAKE_VEC4(Model->Vertices[index2].X, Model->Vertices[index2].Y,
-                          Model->Vertices[index2].Z, 1.0f);
+    const struct Vec4 obj0 =
+        MAKE_VEC4(Model->Vertices[index0].X, Model->Vertices[index0].Y,
+                  Model->Vertices[index0].Z, 1.0f);
+    const struct Vec4 obj1 =
+        MAKE_VEC4(Model->Vertices[index1].X, Model->Vertices[index1].Y,
+                  Model->Vertices[index1].Z, 1.0f);
+    const struct Vec4 obj2 =
+        MAKE_VEC4(Model->Vertices[index2].X, Model->Vertices[index2].Y,
+                  Model->Vertices[index2].Z, 1.0f);
 
-    vec4 clip0, clip1, clip2;
+    const struct Vec4 clip0 = mat4MulVec4(Transform, obj0);
+    const struct Vec4 clip1 = mat4MulVec4(Transform, obj1);
+    const struct Vec4 clip2 = mat4MulVec4(Transform, obj2);
 
-    clip0 = mat4MulVec4(Transform, obj0);
-    clip1 = mat4MulVec4(Transform, obj1);
-    clip2 = mat4MulVec4(Transform, obj2);
-
-    vec3 ndc0 =
+    const struct Vec3 ndc0 =
         MAKE_VEC3(clip0.X / clip0.W, clip0.Y / clip0.W, clip0.Z / clip0.W);
-    vec3 ndc1 =
+    const struct Vec3 ndc1 =
         MAKE_VEC3(clip1.X / clip1.W, clip1.Y / clip1.W, clip1.Z / clip1.W);
-    vec3 ndc2 =
+    const struct Vec3 ndc2 =
         MAKE_VEC3(clip2.X / clip2.W, clip2.Y / clip2.W, clip2.Z / clip2.W);
 
     drawLine(Framebuffer, ndc0, ndc1, Color);

@@ -18,16 +18,16 @@ int main(const int argc, char* argv[]) {
     return EXIT_FAILURE;
   }
 
-  Model model;
-  vec3 modelCenter;
+  struct Model model;
+  struct Vec3 modelCenter;
   float extent;
   loadModel(argv[1], &model, &modelCenter, &extent);
 
   srand(time(nullptr));
 
-  AppWindow* window = createWindow();
+  struct AppWindow* window = createWindow();
 
-  TimeQuery timeQuery;
+  struct TimeQuery timeQuery;
   initializeTimeQuery(&timeQuery);
 
   while (!window->ShouldClose) {
@@ -40,19 +40,20 @@ int main(const int argc, char* argv[]) {
     constexpr float cameraDistanceMultiplier = 1.2f;
     const float aspect =
         (float)window->Framebuffer.Width / (float)window->Framebuffer.Height;
-    const mat4 projectionMatrix = makePerspectiveProjectionMatrix(
+    const struct Mat4 projectionMatrix = makePerspectiveProjectionMatrix(
         70.0f * DegToRad, aspect, 0.1f,
         extent * 2.0f * cameraDistanceMultiplier);
-    const vec3 eye = MAKE_VEC3(0.0f, 0.0f, extent * cameraDistanceMultiplier);
-    const vec3 sceneCenter = MAKE_VEC3(0.0f, 0.0f, 0.0f);
-    const vec3 up = MAKE_VEC3(0.0f, 1.0f, 0.0f);
-    const mat4 viewMatrix = makeMat4LookAt(eye, sceneCenter, up);
+    const struct Vec3 eye =
+        MAKE_VEC3(0.0f, 0.0f, extent * cameraDistanceMultiplier);
+    const struct Vec3 sceneCenter = MAKE_VEC3(0.0f, 0.0f, 0.0f);
+    const struct Vec3 up = MAKE_VEC3(0.0f, 1.0f, 0.0f);
+    const struct Mat4 viewMatrix = makeMat4LookAt(eye, sceneCenter, up);
 
-    const vec3 translation = vec3Scale(modelCenter, -1.0f);
-    mat4 modelMatrix = makeMat4Translation(translation);
+    const struct Vec3 translation = vec3Scale(modelCenter, -1.0f);
+    struct Mat4 modelMatrix = makeMat4Translation(translation);
     modelMatrix = mulMat4RotationY(modelMatrix, currentTime);
 
-    const mat4 mvpMatrix =
+    const struct Mat4 mvpMatrix =
         mat4Mul(mat4Mul(projectionMatrix, viewMatrix), modelMatrix);
 
     drawModel(&window->Framebuffer, &model, mvpMatrix);

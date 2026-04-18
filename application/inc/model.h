@@ -5,17 +5,17 @@
 #include <stddef.h>
 #include <stdint.h>
 
-typedef struct Model {
-  vec3* Vertices;
+struct Model {
+  struct Vec3* Vertices;
   size_t VertexCount;
   uint32_t* Indices;
   size_t IndexCount;
-  vec3* Normals;
+  struct Vec3* Normals;
   uint32_t* Colors;
-} Model;
+};
 
-bool loadModel(const char* FilePath, Model* Destination, vec3* Center,
-               float* Extent);
-void destroyModel(const Model* Model);
+bool loadModel(const char* FilePath, struct Model* Destination,
+               struct Vec3* Center, float* Extent);
+void destroyModel(const struct Model* Model);
 
 #endif // SOFTWARE_MODEL_VISUALIZER_MODEL_H
