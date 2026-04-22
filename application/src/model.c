@@ -2,8 +2,17 @@
 
 #include <assert.h>
 #include <stdlib.h>
+#include <sys/stat.h>
 
 #include "cgltf.h"
+
+static inline bool checkFileExists(const char* const FilePath) {
+  struct stat buffer;
+  if (stat(FilePath, &buffer) == 0) {
+    return (bool)(buffer.st_mode & S_IFREG);
+  }
+  return false;
+}
 
 static inline uint32_t hsvToRgb(const float Hue, const float Saturation,
                                 const float Value) {
@@ -102,6 +111,10 @@ static inline void calculateAabb(const struct Vec3* const Vertices,
 
 bool loadModel(const char* const FilePath, struct Model* const Destination) {
   assert(Destination != nullptr);
+  if (!checkFileExists(FilePath)) {
+    return false;
+  }
+
   constexpr cgltf_options options = {0};
   cgltf_data* data = nullptr;
   if (cgltf_parse_file(&options, FilePath, &data) != cgltf_result_success ||

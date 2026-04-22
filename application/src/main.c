@@ -16,15 +16,17 @@ static inline void printUsage(const char* ProgramName) {
           (ProgramName != nullptr) ? ProgramName : "rasterizer");
 }
 
-static inline int processArguments(const int Argc, const char* const Argv[],
-                                   struct Model* Model) {
+static inline bool processArguments(const int Argc, const char* const Argv[],
+                                    struct Model* Model) {
   if (Argc != 2) {
     printUsage(Argc > 0 ? Argv[0] : nullptr);
-    return EXIT_FAILURE;
+    return false;
   }
-  loadModel(Argv[1], Model);
+  if (!loadModel(Argv[1], Model)) {
+    return false;
+  }
 
-  return EXIT_SUCCESS;
+  return true;
 }
 
 static inline struct Vec3
@@ -71,12 +73,13 @@ int main(const int argc, const char* const argv[]) {
   srand(time(nullptr));
 
   struct Model model;
-  processArguments(argc, argv, &model);
-
-  struct AppWindow* window = createWindow();
-
+  if (!processArguments(argc, argv, &model)) {
+    return EXIT_FAILURE;
+  }
   const struct Vec3 modelCenter = calculateModelCenter(&model);
   const float extent = calculateModelExtent(&model);
+
+  struct AppWindow* window = createWindow();
 
   struct TimeQuery timeQuery;
   initializeTimeQuery(&timeQuery);
