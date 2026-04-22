@@ -41,25 +41,25 @@ constexpr float RadToDeg = 180.0f / Pi;
  * Types
  ******************************************************************************/
 
-GRAPHICS_MATH_ALIGNAS(8) struct Vec2 {
+struct GRAPHICS_MATH_ALIGNAS(8) Vec2 {
   float X;
   float Y;
 };
 
-GRAPHICS_MATH_ALIGNAS(4) struct Vec3 {
+struct GRAPHICS_MATH_ALIGNAS(4) Vec3 {
   float X;
   float Y;
   float Z;
 };
 
-GRAPHICS_MATH_ALIGNAS(16) struct Vec4 {
+struct GRAPHICS_MATH_ALIGNAS(16) Vec4 {
   float X;
   float Y;
   float Z;
   float W;
 };
 
-GRAPHICS_MATH_ALIGNAS(16) struct Mat4 {
+struct GRAPHICS_MATH_ALIGNAS(16) Mat4 {
   float m00;
   float m01;
   float m02;

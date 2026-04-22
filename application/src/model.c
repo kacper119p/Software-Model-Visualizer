@@ -5,8 +5,8 @@
 
 #include "cgltf.h"
 
-static uint32_t hsvToRgb(const float Hue, const float Saturation,
-                         const float Value) {
+static inline uint32_t hsvToRgb(const float Hue, const float Saturation,
+                                const float Value) {
 
   const float hueQuotient = Hue * (1.0f / 60.0f);
 
@@ -100,8 +100,7 @@ static inline void calculateAabb(const struct Vec3* const Vertices,
   vec3Copy(max, Max);
 }
 
-bool loadModel(const char* const FilePath, struct Model* const Destination,
-               struct Vec3* const Center, float* const Extent) {
+bool loadModel(const char* const FilePath, struct Model* const Destination) {
   assert(Destination != nullptr);
   constexpr cgltf_options options = {0};
   cgltf_data* data = nullptr;
@@ -110,8 +109,6 @@ bool loadModel(const char* const FilePath, struct Model* const Destination,
     if (data) {
       cgltf_free(data);
     }
-    *Center = VEC3_ZERO;
-    *Extent = 0.0f;
     return false;
   }
 
@@ -147,8 +144,6 @@ bool loadModel(const char* const FilePath, struct Model* const Destination,
   }
   if (Destination->VertexCount == 0) {
     cgltf_free(data);
-    *Center = VEC3_ZERO;
-    *Extent = 0.0f;
     return false;
   }
 
@@ -168,8 +163,6 @@ bool loadModel(const char* const FilePath, struct Model* const Destination,
     free(normals);
     free(colors);
     cgltf_free(data);
-    *Center = VEC3_ZERO;
-    *Extent = 0.0f;
     return false;
   }
 
@@ -257,16 +250,8 @@ bool loadModel(const char* const FilePath, struct Model* const Destination,
 
   cgltf_free(data);
 
-  struct Vec3 aabbMin;
-  struct Vec3 aabbMax;
-  calculateAabb(Destination->Vertices, Destination->VertexCount, &aabbMin,
-                &aabbMax);
-  const float size = vec3Dist(aabbMin, aabbMax);
-  Center->X = (aabbMin.X + aabbMax.X) * 0.5f;
-  Center->Y = (aabbMin.Y + aabbMax.Y) * 0.5f;
-  Center->Z = (aabbMin.Z + aabbMax.Z) * 0.5f;
-  *Extent = size / 2.0f;
-
+  calculateAabb(Destination->Vertices, Destination->VertexCount,
+                &Destination->AabbMin, &Destination->AabbMax);
   return true;
 }
 

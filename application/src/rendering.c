@@ -171,7 +171,7 @@ void drawTriangle(const struct Framebuffer* Framebuffer, const struct Vec3 V0,
         const float b2 = w2 * areaInv;
 
         const float depth = b0 * norm0.Z + b1 * norm1.Z + b2 * norm2.Z;
-        const size_t pixelIndex = y * Framebuffer->Width + x;
+        const size_t pixelIndex = rowStartIndex + x;
 
         const bool notCulled = depth < Framebuffer->DepthBuffer[pixelIndex] &&
                                depth >= -1.0f && depth <= 1.0f;

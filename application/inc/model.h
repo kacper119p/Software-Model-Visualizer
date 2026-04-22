@@ -12,10 +12,11 @@ struct Model {
   size_t IndexCount;
   struct Vec3* Normals;
   uint32_t* Colors;
+  struct Vec3 AabbMin;
+  struct Vec3 AabbMax;
 };
 
-bool loadModel(const char* FilePath, struct Model* Destination,
-               struct Vec3* Center, float* Extent);
+bool loadModel(const char* FilePath, struct Model* Destination);
 void destroyModel(const struct Model* Model);
 
 #endif // SOFTWARE_MODEL_VISUALIZER_MODEL_H
