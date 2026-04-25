@@ -83,20 +83,20 @@ struct GRAPHICS_MATH_ALIGNAS(16) Vec4 {
 
 struct GRAPHICS_MATH_ALIGNAS(16) Mat4 {
   float m00;
-  float m01;
-  float m02;
-  float m03;
   float m10;
-  float m11;
-  float m12;
-  float m13;
   float m20;
-  float m21;
-  float m22;
-  float m23;
   float m30;
+  float m01;
+  float m11;
+  float m21;
   float m31;
+  float m02;
+  float m12;
+  float m22;
   float m32;
+  float m03;
+  float m13;
+  float m23;
   float m33;
 };
 
@@ -316,89 +316,89 @@ GRAPHICS_MATH_INLINE void mat4Copy(const struct Mat4 Src, struct Mat4* Dst) {
 GRAPHICS_MATH_INLINE struct Mat4 mat4Add(const struct Mat4 A,
                                          const struct Mat4 B) {
   return (struct Mat4){
-      A.m00 + B.m00, A.m01 + B.m01, A.m02 + B.m02, A.m03 + B.m03,
-      A.m10 + B.m10, A.m11 + B.m11, A.m12 + B.m12, A.m13 + B.m13,
-      A.m20 + B.m20, A.m21 + B.m21, A.m22 + B.m22, A.m23 + B.m23,
-      A.m30 + B.m30, A.m31 + B.m31, A.m32 + B.m32, A.m33 + B.m33};
+      A.m00 + B.m00, A.m10 + B.m10, A.m20 + B.m20, A.m30 + B.m30,
+      A.m01 + B.m01, A.m11 + B.m11, A.m21 + B.m21, A.m31 + B.m31,
+      A.m02 + B.m02, A.m12 + B.m12, A.m22 + B.m22, A.m32 + B.m32,
+      A.m03 + B.m03, A.m13 + B.m13, A.m23 + B.m23, A.m33 + B.m33};
 }
 
 GRAPHICS_MATH_INLINE struct Mat4 mat4Sub(const struct Mat4 A,
                                          const struct Mat4 B) {
   return (struct Mat4){
-      A.m00 - B.m00, A.m01 - B.m01, A.m02 - B.m02, A.m03 - B.m03,
-      A.m10 - B.m10, A.m11 - B.m11, A.m12 - B.m12, A.m13 - B.m13,
-      A.m20 - B.m20, A.m21 - B.m21, A.m22 - B.m22, A.m23 - B.m23,
-      A.m30 - B.m30, A.m31 - B.m31, A.m32 - B.m32, A.m33 - B.m33};
+      A.m00 - B.m00, A.m10 - B.m10, A.m20 - B.m20, A.m30 - B.m30,
+      A.m01 - B.m01, A.m11 - B.m11, A.m21 - B.m21, A.m31 - B.m31,
+      A.m02 - B.m02, A.m12 - B.m12, A.m22 - B.m22, A.m32 - B.m32,
+      A.m03 - B.m03, A.m13 - B.m13, A.m23 - B.m23, A.m33 - B.m33};
 }
 
 GRAPHICS_MATH_INLINE struct Mat4 mat4Scale(const struct Mat4 A,
                                            const float Scalar) {
   return (struct Mat4){
-      A.m00 * Scalar, A.m01 * Scalar, A.m02 * Scalar, A.m03 * Scalar,
-      A.m10 * Scalar, A.m11 * Scalar, A.m12 * Scalar, A.m13 * Scalar,
-      A.m20 * Scalar, A.m21 * Scalar, A.m22 * Scalar, A.m23 * Scalar,
-      A.m30 * Scalar, A.m31 * Scalar, A.m32 * Scalar, A.m33 * Scalar};
+      A.m00 * Scalar, A.m10 * Scalar, A.m20 * Scalar, A.m30 * Scalar,
+      A.m01 * Scalar, A.m11 * Scalar, A.m21 * Scalar, A.m31 * Scalar,
+      A.m02 * Scalar, A.m12 * Scalar, A.m22 * Scalar, A.m32 * Scalar,
+      A.m03 * Scalar, A.m13 * Scalar, A.m23 * Scalar, A.m33 * Scalar};
 }
 
 GRAPHICS_MATH_INLINE struct Mat4 mat4Div(const struct Mat4 A,
                                          const float Scalar) {
   const float inverse = 1.0f / Scalar;
   return (struct Mat4){
-      A.m00 * inverse, A.m01 * inverse, A.m02 * inverse, A.m03 * inverse,
-      A.m10 * inverse, A.m11 * inverse, A.m12 * inverse, A.m13 * inverse,
-      A.m20 * inverse, A.m21 * inverse, A.m22 * inverse, A.m23 * inverse,
-      A.m30 * inverse, A.m31 * inverse, A.m32 * inverse, A.m33 * inverse};
+      A.m00 * inverse, A.m10 * inverse, A.m20 * inverse, A.m30 * inverse,
+      A.m01 * inverse, A.m11 * inverse, A.m21 * inverse, A.m31 * inverse,
+      A.m02 * inverse, A.m12 * inverse, A.m22 * inverse, A.m32 * inverse,
+      A.m03 * inverse, A.m13 * inverse, A.m23 * inverse, A.m33 * inverse};
 }
 
 GRAPHICS_MATH_INLINE struct Mat4 mat4Mul(const struct Mat4 A,
                                          const struct Mat4 B) {
   return (struct Mat4){
-      A.m00 * B.m00 + A.m10 * B.m01 + A.m20 * B.m02 + A.m30 * B.m03,
-      A.m01 * B.m00 + A.m11 * B.m01 + A.m21 * B.m02 + A.m31 * B.m03,
-      A.m02 * B.m00 + A.m12 * B.m01 + A.m22 * B.m02 + A.m32 * B.m03,
-      A.m03 * B.m00 + A.m13 * B.m01 + A.m23 * B.m02 + A.m33 * B.m03,
+      A.m00 * B.m00 + A.m01 * B.m10 + A.m02 * B.m20 + A.m03 * B.m30,
+      A.m10 * B.m00 + A.m11 * B.m10 + A.m12 * B.m20 + A.m13 * B.m30,
+      A.m20 * B.m00 + A.m21 * B.m10 + A.m22 * B.m20 + A.m23 * B.m30,
+      A.m30 * B.m00 + A.m31 * B.m10 + A.m32 * B.m20 + A.m33 * B.m30,
 
-      A.m00 * B.m10 + A.m10 * B.m11 + A.m20 * B.m12 + A.m30 * B.m13,
-      A.m01 * B.m10 + A.m11 * B.m11 + A.m21 * B.m12 + A.m31 * B.m13,
-      A.m02 * B.m10 + A.m12 * B.m11 + A.m22 * B.m12 + A.m32 * B.m13,
-      A.m03 * B.m10 + A.m13 * B.m11 + A.m23 * B.m12 + A.m33 * B.m13,
+      A.m00 * B.m01 + A.m01 * B.m11 + A.m02 * B.m21 + A.m03 * B.m31,
+      A.m10 * B.m01 + A.m11 * B.m11 + A.m12 * B.m21 + A.m13 * B.m31,
+      A.m20 * B.m01 + A.m21 * B.m11 + A.m22 * B.m21 + A.m23 * B.m31,
+      A.m30 * B.m01 + A.m31 * B.m11 + A.m32 * B.m21 + A.m33 * B.m31,
 
-      A.m00 * B.m20 + A.m10 * B.m21 + A.m20 * B.m22 + A.m30 * B.m23,
-      A.m01 * B.m20 + A.m11 * B.m21 + A.m21 * B.m22 + A.m31 * B.m23,
-      A.m02 * B.m20 + A.m12 * B.m21 + A.m22 * B.m22 + A.m32 * B.m23,
-      A.m03 * B.m20 + A.m13 * B.m21 + A.m23 * B.m22 + A.m33 * B.m23,
+      A.m00 * B.m02 + A.m01 * B.m12 + A.m02 * B.m22 + A.m03 * B.m32,
+      A.m10 * B.m02 + A.m11 * B.m12 + A.m12 * B.m22 + A.m13 * B.m32,
+      A.m20 * B.m02 + A.m21 * B.m12 + A.m22 * B.m22 + A.m23 * B.m32,
+      A.m30 * B.m02 + A.m31 * B.m12 + A.m32 * B.m22 + A.m33 * B.m32,
 
-      A.m00 * B.m30 + A.m10 * B.m31 + A.m20 * B.m32 + A.m30 * B.m33,
-      A.m01 * B.m30 + A.m11 * B.m31 + A.m21 * B.m32 + A.m31 * B.m33,
-      A.m02 * B.m30 + A.m12 * B.m31 + A.m22 * B.m32 + A.m32 * B.m33,
-      A.m03 * B.m30 + A.m13 * B.m31 + A.m23 * B.m32 + A.m33 * B.m33,
+      A.m00 * B.m03 + A.m01 * B.m13 + A.m02 * B.m23 + A.m03 * B.m33,
+      A.m10 * B.m03 + A.m11 * B.m13 + A.m12 * B.m23 + A.m13 * B.m33,
+      A.m20 * B.m03 + A.m21 * B.m13 + A.m22 * B.m23 + A.m23 * B.m33,
+      A.m30 * B.m03 + A.m31 * B.m13 + A.m32 * B.m23 + A.m33 * B.m33,
   };
 }
 
 GRAPHICS_MATH_INLINE struct Vec4 mat4MulVec4(const struct Mat4 M,
                                              const struct Vec4 V) {
   return (struct Vec4){
-      M.m00 * V.X + M.m10 * V.Y + M.m20 * V.Z + M.m30 * V.W,
-      M.m01 * V.X + M.m11 * V.Y + M.m21 * V.Z + M.m31 * V.W,
-      M.m02 * V.X + M.m12 * V.Y + M.m22 * V.Z + M.m32 * V.W,
-      M.m03 * V.X + M.m13 * V.Y + M.m23 * V.Z + M.m33 * V.W,
+      M.m00 * V.X + M.m01 * V.Y + M.m02 * V.Z + M.m03 * V.W,
+      M.m10 * V.X + M.m11 * V.Y + M.m12 * V.Z + M.m13 * V.W,
+      M.m20 * V.X + M.m21 * V.Y + M.m22 * V.Z + M.m23 * V.W,
+      M.m30 * V.X + M.m31 * V.Y + M.m32 * V.Z + M.m33 * V.W,
   };
 }
 
 GRAPHICS_MATH_INLINE struct Mat4 mat4Inverse(const struct Mat4 M) {
-  const float a0 = M.m00 * M.m11 - M.m01 * M.m10;
-  const float a1 = M.m00 * M.m12 - M.m02 * M.m10;
-  const float a2 = M.m00 * M.m13 - M.m03 * M.m10;
-  const float a3 = M.m01 * M.m12 - M.m02 * M.m11;
-  const float a4 = M.m01 * M.m13 - M.m03 * M.m11;
-  const float a5 = M.m02 * M.m13 - M.m03 * M.m12;
+  const float a0 = M.m00 * M.m11 - M.m10 * M.m01;
+  const float a1 = M.m00 * M.m21 - M.m20 * M.m01;
+  const float a2 = M.m00 * M.m31 - M.m30 * M.m01;
+  const float a3 = M.m10 * M.m21 - M.m20 * M.m11;
+  const float a4 = M.m10 * M.m31 - M.m30 * M.m11;
+  const float a5 = M.m20 * M.m31 - M.m30 * M.m21;
 
-  const float b0 = M.m20 * M.m31 - M.m21 * M.m30;
-  const float b1 = M.m20 * M.m32 - M.m22 * M.m30;
-  const float b2 = M.m20 * M.m33 - M.m23 * M.m30;
-  const float b3 = M.m21 * M.m32 - M.m22 * M.m31;
-  const float b4 = M.m21 * M.m33 - M.m23 * M.m31;
-  const float b5 = M.m22 * M.m33 - M.m23 * M.m32;
+  const float b0 = M.m02 * M.m13 - M.m12 * M.m03;
+  const float b1 = M.m02 * M.m23 - M.m22 * M.m03;
+  const float b2 = M.m02 * M.m33 - M.m32 * M.m03;
+  const float b3 = M.m12 * M.m23 - M.m22 * M.m13;
+  const float b4 = M.m12 * M.m33 - M.m32 * M.m13;
+  const float b5 = M.m22 * M.m33 - M.m32 * M.m23;
 
   const float det = a0 * b5 - a1 * b4 + a2 * b3 + a3 * b2 - a4 * b1 + a5 * b0;
   if (GRAPHICS_MATH_UNLIKELY(det > -1e-6f && det < 1e-6f))
@@ -406,35 +406,35 @@ GRAPHICS_MATH_INLINE struct Mat4 mat4Inverse(const struct Mat4 M) {
   const float invDet = 1.0f / det;
 
   return (struct Mat4){
-      (M.m11 * b5 - M.m12 * b4 + M.m13 * b3) * invDet,
-      (-M.m01 * b5 + M.m02 * b4 - M.m03 * b3) * invDet,
-      (M.m31 * a5 - M.m32 * a4 + M.m33 * a3) * invDet,
-      (-M.m21 * a5 + M.m22 * a4 - M.m23 * a3) * invDet,
+      (M.m11 * b5 - M.m21 * b4 + M.m31 * b3) * invDet,
+      (-M.m10 * b5 + M.m20 * b4 - M.m30 * b3) * invDet,
+      (M.m13 * a5 - M.m23 * a4 + M.m33 * a3) * invDet,
+      (-M.m12 * a5 + M.m22 * a4 - M.m32 * a3) * invDet,
 
-      (-M.m10 * b5 + M.m12 * b2 - M.m13 * b1) * invDet,
-      (M.m00 * b5 - M.m02 * b2 + M.m03 * b1) * invDet,
-      (-M.m30 * a5 + M.m32 * a2 - M.m33 * a1) * invDet,
-      (M.m20 * a5 - M.m22 * a2 + M.m23 * a1) * invDet,
+      (-M.m01 * b5 + M.m21 * b2 - M.m31 * b1) * invDet,
+      (M.m00 * b5 - M.m20 * b2 + M.m30 * b1) * invDet,
+      (-M.m03 * a5 + M.m23 * a2 - M.m33 * a1) * invDet,
+      (M.m02 * a5 - M.m22 * a2 + M.m32 * a1) * invDet,
 
-      (M.m10 * b4 - M.m11 * b2 + M.m13 * b0) * invDet,
-      (-M.m00 * b4 + M.m01 * b2 - M.m03 * b0) * invDet,
-      (M.m30 * a4 - M.m31 * a2 + M.m33 * a0) * invDet,
-      (-M.m20 * a4 + M.m21 * a2 - M.m23 * a0) * invDet,
+      (M.m01 * b4 - M.m11 * b2 + M.m31 * b0) * invDet,
+      (-M.m00 * b4 + M.m10 * b2 - M.m30 * b0) * invDet,
+      (M.m03 * a4 - M.m13 * a2 + M.m33 * a0) * invDet,
+      (-M.m02 * a4 + M.m12 * a2 - M.m32 * a0) * invDet,
 
-      (-M.m10 * b3 + M.m11 * b1 - M.m12 * b0) * invDet,
-      (M.m00 * b3 - M.m01 * b1 + M.m02 * b0) * invDet,
-      (-M.m30 * a3 + M.m31 * a1 - M.m32 * a0) * invDet,
-      (M.m20 * a3 - M.m21 * a1 + M.m22 * a0) * invDet,
+      (-M.m01 * b3 + M.m11 * b1 - M.m21 * b0) * invDet,
+      (M.m00 * b3 - M.m10 * b1 + M.m20 * b0) * invDet,
+      (-M.m03 * a3 + M.m13 * a1 - M.m23 * a0) * invDet,
+      (M.m02 * a3 - M.m12 * a1 + M.m22 * a0) * invDet,
   };
 }
 
 GRAPHICS_MATH_INLINE struct Mat4 mat4AffineInverse(const struct Mat4 M) {
-  const float x = 1.0f / (M.m00 * M.m00 + M.m01 * M.m01 + M.m02 * M.m02);
-  const float y = 1.0f / (M.m10 * M.m10 + M.m11 * M.m11 + M.m12 * M.m12);
-  const float z = 1.0f / (M.m20 * M.m20 + M.m21 * M.m21 + M.m22 * M.m22);
-  const float r00 = M.m00 * x, r10 = M.m01 * x, r20 = M.m02 * x;
-  const float r01 = M.m10 * y, r11 = M.m11 * y, r21 = M.m12 * y;
-  const float r02 = M.m20 * z, r12 = M.m21 * z, r22 = M.m22 * z;
+  const float x = 1.0f / (M.m00 * M.m00 + M.m10 * M.m10 + M.m20 * M.m20);
+  const float y = 1.0f / (M.m01 * M.m01 + M.m11 * M.m11 + M.m21 * M.m21);
+  const float z = 1.0f / (M.m02 * M.m02 + M.m12 * M.m12 + M.m22 * M.m22);
+  const float r00 = M.m00 * x, r10 = M.m10 * x, r20 = M.m20 * x;
+  const float r01 = M.m01 * y, r11 = M.m11 * y, r21 = M.m21 * y;
+  const float r02 = M.m02 * z, r12 = M.m12 * z, r22 = M.m22 * z;
   return (struct Mat4){r00,
                        r10,
                        r20,
@@ -447,15 +447,15 @@ GRAPHICS_MATH_INLINE struct Mat4 mat4AffineInverse(const struct Mat4 M) {
                        r12,
                        r22,
                        0.0f,
-                       -(M.m30 * r00 + M.m31 * r10 + M.m32 * r20),
-                       -(M.m30 * r01 + M.m31 * r11 + M.m32 * r21),
-                       -(M.m30 * r02 + M.m31 * r12 + M.m32 * r22),
+                       -(M.m03 * r00 + M.m13 * r10 + M.m23 * r20),
+                       -(M.m03 * r01 + M.m13 * r11 + M.m23 * r21),
+                       -(M.m03 * r02 + M.m13 * r12 + M.m23 * r22),
                        1.0f};
 }
 
 GRAPHICS_MATH_INLINE struct Mat4 mat4Transpose(const struct Mat4 M) {
-  return (struct Mat4){M.m00, M.m10, M.m20, M.m30, M.m01, M.m11, M.m21, M.m31,
-                       M.m02, M.m12, M.m22, M.m32, M.m03, M.m13, M.m23, M.m33};
+  return (struct Mat4){M.m00, M.m01, M.m02, M.m03, M.m10, M.m11, M.m12, M.m13,
+                       M.m20, M.m21, M.m22, M.m23, M.m30, M.m31, M.m32, M.m33};
 }
 
 /*******************************************************************************

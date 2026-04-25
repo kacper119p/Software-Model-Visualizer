@@ -127,9 +127,9 @@ TEST(mat4Inverse) {
   ASSERT_CLOSE_FLOAT(r.m11, 1.0f, floatEpsilon);
   ASSERT_CLOSE_FLOAT(r.m22, 1.0f, floatEpsilon);
   ASSERT_CLOSE_FLOAT(r.m33, 1.0f, floatEpsilon);
-  ASSERT_CLOSE_FLOAT(r.m30, 0.0f, floatEpsilon);
-  ASSERT_CLOSE_FLOAT(r.m31, 0.0f, floatEpsilon);
-  ASSERT_CLOSE_FLOAT(r.m32, 0.0f, floatEpsilon);
+  ASSERT_CLOSE_FLOAT(r.m03, 0.0f, floatEpsilon);
+  ASSERT_CLOSE_FLOAT(r.m13, 0.0f, floatEpsilon);
+  ASSERT_CLOSE_FLOAT(r.m23, 0.0f, floatEpsilon);
 }
 
 TEST(mat4LookAt) {
@@ -222,9 +222,9 @@ TEST(mat4ScaleUniform) {
 TEST(mat4Transpose) {
   const struct Mat4 m = makeMat4Translation(MAKE_VEC3(1, 2, 3));
   const struct Mat4 t = mat4Transpose(m);
-  ASSERT_CLOSE_FLOAT(t.m03, 1.0f, floatEpsilon);
-  ASSERT_CLOSE_FLOAT(t.m13, 2.0f, floatEpsilon);
-  ASSERT_CLOSE_FLOAT(t.m23, 3.0f, floatEpsilon);
+  ASSERT_CLOSE_FLOAT(t.m30, 1.0f, floatEpsilon);
+  ASSERT_CLOSE_FLOAT(t.m31, 2.0f, floatEpsilon);
+  ASSERT_CLOSE_FLOAT(t.m32, 3.0f, floatEpsilon);
 }
 
 TEST(perspectiveProjection) {
