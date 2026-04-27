@@ -122,7 +122,13 @@ void presentWindow(const struct AppWindow* const Window) {
   ReleaseDC(Window->WindowHandle, deviceContext);
 }
 
-struct AppWindow* createWindow() {
+void createWindow(struct AppWindow* const Window) {
+  assert(Window != nullptr);
+  if (Window == nullptr) {
+    return;
+  }
+  memset(Window, 0, sizeof(*Window));
+
   HINSTANCE instance = GetModuleHandle(NULL);
   WNDCLASSEX windowClass = {0};
 
@@ -141,9 +147,6 @@ struct AppWindow* createWindow() {
   assert(registerClassResult);
 #endif
 
-  struct AppWindow* window = calloc(1, sizeof(struct AppWindow));
-  assert(window);
-
   constexpr int32_t width = 640;
   constexpr int32_t height = 480;
   constexpr DWORD windowExStyle = WS_EX_LEFT;
@@ -160,25 +163,25 @@ struct AppWindow* createWindow() {
       CreateWindowEx(windowExStyle, windowClass.lpszClassName,
                      "Software Rasterizer", windowStyle, CW_USEDEFAULT,
                      CW_USEDEFAULT, windowWidth, windowHeight, NULL, NULL,
-                     instance, window);
+                     instance, Window);
   assert(windowHandle);
-
-  return window;
 }
 
-void destroyWindow(struct AppWindow** const Window) {
-  struct AppWindow* window = *Window;
-  if (window->Framebuffer.ColorBuffer) {
-    VirtualFree(window->Framebuffer.ColorBuffer, 0, MEM_RELEASE);
+void destroyWindow(struct AppWindow* const Window) {
+  assert(Window != nullptr);
+  if (Window == nullptr) {
+    return;
   }
-  if (window->Framebuffer.DepthBuffer) {
-    VirtualFree(window->Framebuffer.DepthBuffer, 0, MEM_RELEASE);
+  if (Window->Framebuffer.ColorBuffer) {
+    VirtualFree(Window->Framebuffer.ColorBuffer, 0, MEM_RELEASE);
   }
-  if (window->WindowHandle) {
-    DestroyWindow(window->WindowHandle);
+  if (Window->Framebuffer.DepthBuffer) {
+    VirtualFree(Window->Framebuffer.DepthBuffer, 0, MEM_RELEASE);
   }
-  free(window);
-  *Window = nullptr;
+  if (Window->WindowHandle) {
+    DestroyWindow(Window->WindowHandle);
+  }
+  memset(Window, 0, sizeof(*Window));
 }
 
 void peekWindowMessages(struct AppWindow* const Window) {
