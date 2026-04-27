@@ -119,8 +119,7 @@ void drawLine(const struct Framebuffer* const Framebuffer, const struct Vec3 V0,
 }
 
 void drawTriangle(const struct Framebuffer* Framebuffer, const struct Vec3 V0,
-                  const struct Vec3 V1, const struct Vec3 V2,
-                  const uint32_t Color) {
+                  const struct Vec3 V1, const struct Vec3 V2, const uint32_t) {
   struct Vec3 norm0;
   struct Vec3 norm1;
   struct Vec3 norm2;
@@ -200,7 +199,11 @@ void drawTriangle(const struct Framebuffer* Framebuffer, const struct Vec3 V0,
 
         if (notCulled) {
           Framebuffer->DepthBuffer[pixelIndex] = depth;
-          Framebuffer->ColorBuffer[pixelIndex] = Color;
+          constexpr uint32_t color1 = 0xFF0000FF;
+          constexpr uint32_t color2 = 0xFF00FF00;
+          constexpr uint32_t color3 = 0xFFFF0000;
+          Framebuffer->ColorBuffer[pixelIndex] =
+              lerpColorBarycentric(color1, color2, color3, b0, b1, b2);
         }
       }
       w0 += stepXW0;

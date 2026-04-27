@@ -91,29 +91,29 @@ static inline void renderFrame(struct Framebuffer* const Framebuffer,
   drawModel(Framebuffer, Model, mvpMatrix);
 }
 
-int main(const int argc, const char* const argv[]) {
+int main(void) {
   srand(time(nullptr));
-
-  struct Model model;
-  if (!processArguments(argc, argv, &model)) {
-    return EXIT_FAILURE;
-  }
-  const struct Vec3 modelCenter = calculateModelCenter(&model);
-  const float extent = calculateModelExtent(&model);
-
   struct AppWindow* window = createWindow();
 
   struct TimeQuery timeQuery;
   initializeTimeQuery(&timeQuery);
 
   while (!window->ShouldClose) {
-    const float currentTime = getElapsedTime(&timeQuery);
+    // const float currentTime = getElapsedTime(&timeQuery);
+    //   two triangle covering screen
+    clearColorBuffer(&window->Framebuffer, 0x00FF00FF);
+    clearDepthBuffer(&window->Framebuffer, 1.0f);
+    drawTriangle(&window->Framebuffer, MAKE_VEC3(1, -1, 0), MAKE_VEC3(1, 1, 0),
+                 MAKE_VEC3(-1, 1, 0), 0x00000000);
+    drawTriangle(&window->Framebuffer, MAKE_VEC3(-1, -1, 0),
+                 MAKE_VEC3(1, -1, 0), MAKE_VEC3(-1, 1, 0), 0x00000000);
+    drawTriangle(&window->Framebuffer, MAKE_VEC3(-0.25f, 0.75f, 2),
+                 MAKE_VEC3(-0.25f, -0.75f, -2), MAKE_VEC3(0.25f, -0.75f, -5),
+                 0x00000000);
     peekWindowMessages(window);
-    renderFrame(&window->Framebuffer, &model, currentTime, extent, modelCenter);
     presentWindow(window);
   }
 
-  destroyModel(&model);
   destroyWindow(&window);
   return EXIT_SUCCESS;
 }
