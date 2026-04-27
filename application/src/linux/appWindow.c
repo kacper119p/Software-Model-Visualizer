@@ -26,6 +26,7 @@
 #include <X11/cursorfont.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/mman.h>
 
 static constexpr int32_t windowDefaultWidth = 640;
@@ -82,80 +83,84 @@ static void resizeFramebuffer(struct AppWindow* const Window,
   assert(Window->Image);
 }
 
-void presentWindow(const struct AppWindow* Window) {
+void presentWindow(const struct AppWindow* const Window) {
   XPutImage(Window->Display, Window->WindowHandle, Window->Gc, Window->Image, 0,
             0, 0, 0, Window->Framebuffer.Width, Window->Framebuffer.Height);
   XFlush(Window->Display);
 }
 
-struct AppWindow* createWindow() {
-  struct AppWindow* window = calloc(1, sizeof(struct AppWindow));
-  assert(window);
+void createWindow(struct AppWindow* const Window) {
+  assert(Window != nullptr);
+  if (Window == nullptr) {
+    return;
+  }
+  memset(Window, 0, sizeof(struct AppWindow));
 
-  window->Display = XOpenDisplay(nullptr);
-  assert(window->Display);
+  Window->Display = XOpenDisplay(nullptr);
+  assert(Window->Display);
 
-  const int32_t screen = DefaultScreen(window->Display);
+  const int32_t screen = DefaultScreen(Window->Display);
 
-  const double dpi = (double)XDisplayWidth(window->Display, screen) /
-                     (double)XDisplayWidthMM(window->Display, screen) * 25.4;
+  const double dpi = (double)XDisplayWidth(Window->Display, screen) /
+                     (double)XDisplayWidthMM(Window->Display, screen) * 25.4;
   const double scale = dpi > 96.0 ? dpi / 96.0 : 1.0;
   const uint32_t scaledWidth = (uint32_t)(windowDefaultWidth * scale);
   const uint32_t scaledHeight = (uint32_t)(windowDefaultHeight * scale);
 
-  window->WindowHandle = XCreateSimpleWindow(
-      window->Display, RootWindow(window->Display, screen), 0, 0, scaledWidth,
-      scaledHeight, 0, BlackPixel(window->Display, screen),
-      BlackPixel(window->Display, screen));
+  Window->WindowHandle = XCreateSimpleWindow(
+      Window->Display, RootWindow(Window->Display, screen), 0, 0, scaledWidth,
+      scaledHeight, 0, BlackPixel(Window->Display, screen),
+      BlackPixel(Window->Display, screen));
 
-  XStoreName(window->Display, window->WindowHandle, "Software Rasterizer");
-  XSelectInput(window->Display, window->WindowHandle,
+  XStoreName(Window->Display, Window->WindowHandle, "Software Rasterizer");
+  XSelectInput(Window->Display, Window->WindowHandle,
                ExposureMask | StructureNotifyMask);
 
-  Atom wmDelete = XInternAtom(window->Display, "WM_DELETE_WINDOW", False);
-  XSetWMProtocols(window->Display, window->WindowHandle, &wmDelete, 1);
+  Atom wmDelete = XInternAtom(Window->Display, "WM_DELETE_WINDOW", False);
+  XSetWMProtocols(Window->Display, Window->WindowHandle, &wmDelete, 1);
 
-  window->Gc = XCreateGC(window->Display, window->WindowHandle, 0, nullptr);
+  Window->Gc = XCreateGC(Window->Display, Window->WindowHandle, 0, nullptr);
 
-  Cursor cursor = XCreateFontCursor(window->Display, XC_left_ptr);
-  XDefineCursor(window->Display, window->WindowHandle, cursor);
-  XFreeCursor(window->Display, cursor);
+  Cursor cursor = XCreateFontCursor(Window->Display, XC_left_ptr);
+  XDefineCursor(Window->Display, Window->WindowHandle, cursor);
+  XFreeCursor(Window->Display, cursor);
 
-  XMapWindow(window->Display, window->WindowHandle);
-  XFlush(window->Display);
+  XMapWindow(Window->Display, Window->WindowHandle);
+  XFlush(Window->Display);
 
-  resizeFramebuffer(window, windowDefaultWidth, windowDefaultHeight);
-
-  return window;
+  resizeFramebuffer(Window, windowDefaultWidth, windowDefaultHeight);
 }
 
-void destroyWindow(struct AppWindow** const Window) {
-  struct AppWindow* const window = *Window;
-  if (window->Image) {
-    window->Image->data = nullptr;
-    XDestroyImage(window->Image);
+void destroyWindow(struct AppWindow* const Window) {
+  assert(Window != nullptr);
+  if (Window == nullptr) {
+    return;
   }
-  if (window->Framebuffer.ColorBuffer) {
-    munmap(window->Framebuffer.ColorBuffer, window->Framebuffer.Width *
-                                                window->Framebuffer.Height *
+
+  if (Window->Image) {
+    Window->Image->data = nullptr;
+    XDestroyImage(Window->Image);
+  }
+  if (Window->Framebuffer.ColorBuffer) {
+    munmap(Window->Framebuffer.ColorBuffer, Window->Framebuffer.Width *
+                                                Window->Framebuffer.Height *
                                                 sizeof(uint32_t));
   }
-  if (window->Framebuffer.DepthBuffer) {
-    munmap(window->Framebuffer.DepthBuffer, window->Framebuffer.Width *
-                                                window->Framebuffer.Height *
+  if (Window->Framebuffer.DepthBuffer) {
+    munmap(Window->Framebuffer.DepthBuffer, Window->Framebuffer.Width *
+                                                Window->Framebuffer.Height *
                                                 sizeof(float));
   }
-  if (window->Gc) {
-    XFreeGC(window->Display, window->Gc);
+  if (Window->Gc) {
+    XFreeGC(Window->Display, Window->Gc);
   }
-  if (window->WindowHandle) {
-    XDestroyWindow(window->Display, window->WindowHandle);
+  if (Window->WindowHandle) {
+    XDestroyWindow(Window->Display, Window->WindowHandle);
   }
-  if (window->Display) {
-    XCloseDisplay(window->Display);
+  if (Window->Display) {
+    XCloseDisplay(Window->Display);
   }
-  free(window);
-  *Window = nullptr;
+  memset(Window, 0, sizeof(struct AppWindow));
 }
 
 void peekWindowMessages(struct AppWindow* const Window) {

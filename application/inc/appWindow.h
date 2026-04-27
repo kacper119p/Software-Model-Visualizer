@@ -56,8 +56,8 @@ struct AppWindow {
 };
 
 void presentWindow(const struct AppWindow* Window);
-[[nodiscard]] struct AppWindow* createWindow();
-void destroyWindow(struct AppWindow** Window);
+void createWindow(struct AppWindow* Window);
+void destroyWindow(struct AppWindow* Window);
 void peekWindowMessages(struct AppWindow* Window);
 
 #endif // SOFTWARE_MODEL_VISUALIZER_WINDOW_H

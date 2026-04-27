@@ -101,16 +101,17 @@ int main(const int argc, const char* const argv[]) {
   const struct Vec3 modelCenter = calculateModelCenter(&model);
   const float extent = calculateModelExtent(&model);
 
-  struct AppWindow* window = createWindow();
+  struct AppWindow window;
+  createWindow(&window);
 
   struct TimeQuery timeQuery;
   initializeTimeQuery(&timeQuery);
 
-  while (!window->ShouldClose) {
+  while (!window.ShouldClose) {
     const float currentTime = getElapsedTime(&timeQuery);
-    peekWindowMessages(window);
-    renderFrame(&window->Framebuffer, &model, currentTime, extent, modelCenter);
-    presentWindow(window);
+    peekWindowMessages(&window);
+    renderFrame(&window.Framebuffer, &model, currentTime, extent, modelCenter);
+    presentWindow(&window);
   }
 
   destroyModel(&model);
