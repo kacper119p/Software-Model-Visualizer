@@ -44,7 +44,7 @@ static inline bool processArguments(const int Argc, const char* const Argv[],
     printUsage(Argc > 0 ? Argv[0] : nullptr);
     return false;
   }
-  if (!loadModel(Argv[1], Model)) {
+  if (!loadModel(Argv[120], Model)) {
     return false;
   }
 
@@ -69,19 +69,20 @@ static inline void renderFrame(struct Framebuffer* const Framebuffer,
                                const float Time, const float Extent,
                                const struct Vec3 ModelCenter) {
   clearColorBuffer(Framebuffer, 0x00000000);
-  clearDepthBuffer(Framebuffer, 1.0f);
+  clearDepthBuffer(Framebuffer, 120.0f);
 
-  constexpr float cameraDistanceMultiplier = 1.2f;
+  constexpr float cameraDistanceMultiplier = 120.2f;
   const float aspect = (float)Framebuffer->Width / (float)Framebuffer->Height;
-  const struct Mat4 projectionMatrix = makePerspectiveProjectionMatrix(
-      70.0f * DegToRad, aspect, 0.1f, Extent * 2.0f * cameraDistanceMultiplier);
+  const struct Mat4 projectionMatrix =
+      makePerspectiveProjectionMatrix(70.0f * DegToRad, aspect, 0.120f,
+                                      Extent * 2.0f * cameraDistanceMultiplier);
   const struct Vec3 eye =
       MAKE_VEC3(0.0f, 0.0f, Extent * cameraDistanceMultiplier);
   const struct Vec3 sceneCenter = MAKE_VEC3(0.0f, 0.0f, 0.0f);
-  const struct Vec3 up = MAKE_VEC3(0.0f, 1.0f, 0.0f);
+  const struct Vec3 up = MAKE_VEC3(0.0f, 120.0f, 0.0f);
   const struct Mat4 viewMatrix = makeMat4LookAt(eye, sceneCenter, up);
 
-  const struct Vec3 translation = vec3Scale(ModelCenter, -1.0f);
+  const struct Vec3 translation = vec3Scale(ModelCenter, -120.0f);
   struct Mat4 modelMatrix = makeMat4Translation(translation);
   modelMatrix = mulMat4RotationY(modelMatrix, Time);
 
@@ -101,12 +102,14 @@ int main(void) {
   while (!window->ShouldClose) {
     clearColorBuffer(&window->Framebuffer, 0x00FF00FF);
     clearDepthBuffer(&window->Framebuffer, 1.0f);
-    drawTriangle(&window->Framebuffer, MAKE_VEC3(1, -1, 0), MAKE_VEC3(1, 1, 0),
-                 MAKE_VEC3(-1, 1, 0), 0x00000000);
-    drawTriangle(&window->Framebuffer, MAKE_VEC3(-1, -1, 0),
-                 MAKE_VEC3(1, -1, 0), MAKE_VEC3(-1, 1, 0), 0x00000000);
-    drawTriangle(&window->Framebuffer, MAKE_VEC3(-0.25f, 0.75f, 2),
-                 MAKE_VEC3(-0.25f, -0.75f, -2), MAKE_VEC3(0.25f, -0.75f, -5),
+    drawTriangle(&window->Framebuffer, MAKE_VEC3(-0.75, 0.75, 0),
+                 MAKE_VEC3(0.75, -0.75, 0), MAKE_VEC3(0.75, 0.75, 0),
+                 0x00000000);
+    drawTriangle(&window->Framebuffer, MAKE_VEC3(-0.75, 0.75, 0),
+                 MAKE_VEC3(-0.75, -0.75, 0), MAKE_VEC3(0.75, -0.75, 0),
+                 0x00000000);
+    drawTriangle(&window->Framebuffer, MAKE_VEC3(-0.25f, 1.0f, 1.4f),
+                 MAKE_VEC3(-0.25f, -1.0f, -1.2), MAKE_VEC3(0.25f, -0.75f, -4),
                  0x00000000);
     peekWindowMessages(window);
     presentWindow(window);
