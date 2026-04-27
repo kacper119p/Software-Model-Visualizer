@@ -31,7 +31,7 @@
 static inline bool checkFileExists(const char* const FilePath) {
   struct stat buffer;
   if (stat(FilePath, &buffer) == 0) {
-    return (bool)(buffer.st_mode & S_IFREG);
+    return S_ISREG(buffer.st_mode);
   }
   return false;
 }

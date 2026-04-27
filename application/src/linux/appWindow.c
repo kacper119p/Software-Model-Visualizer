@@ -71,15 +71,15 @@ static void resizeFramebuffer(struct AppWindow* const Window,
   Window->Framebuffer.DepthBuffer =
       mmap(nullptr, Width * Height * sizeof(float), PROT_READ | PROT_WRITE,
            MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-  assert(window->Framebuffer.ColorBuffer != MAP_FAILED);
-  assert(window->Framebuffer.DepthBuffer != MAP_FAILED);
+  assert(Window->Framebuffer.ColorBuffer != MAP_FAILED);
+  assert(Window->Framebuffer.DepthBuffer != MAP_FAILED);
 
   Window->Image = XCreateImage(
       Window->Display,
       DefaultVisual(Window->Display, DefaultScreen(Window->Display)), 24,
       ZPixmap, 0, (char*)Window->Framebuffer.ColorBuffer, Width, Height, 32,
       (int32_t)(Width * sizeof(uint32_t)));
-  assert(window->Image);
+  assert(Window->Image);
 }
 
 void presentWindow(const struct AppWindow* Window) {
