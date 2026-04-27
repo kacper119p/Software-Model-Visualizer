@@ -267,6 +267,12 @@ TEST(vec2Dist) {
   ASSERT_CLOSE_FLOAT(dist, 5.0f, floatEpsilon);
 }
 
+TEST(vec2Lerp) {
+  const struct Vec2 r = vec2Lerp(MAKE_VEC2(0, 0), MAKE_VEC2(10, 20), 0.5f);
+  ASSERT_CLOSE_FLOAT(r.X, 5.0f, floatEpsilon);
+  ASSERT_CLOSE_FLOAT(r.Y, 10.0f, floatEpsilon);
+}
+
 TEST(vec3LenSq) {
   const float lenSq = vec3LenSq(MAKE_VEC3(1, 2, 2));
   ASSERT_CLOSE_FLOAT(lenSq, 9.0f, floatEpsilon);
@@ -275,6 +281,14 @@ TEST(vec3LenSq) {
 TEST(vec3Dist) {
   const float dist = vec3Dist(MAKE_VEC3(0, 0, 0), MAKE_VEC3(1, 2, 2));
   ASSERT_CLOSE_FLOAT(dist, 3.0f, floatEpsilon);
+}
+
+TEST(vec3Lerp) {
+  const struct Vec3 r =
+      vec3Lerp(MAKE_VEC3(0, 0, 0), MAKE_VEC3(10, 20, 30), 0.5f);
+  ASSERT_CLOSE_FLOAT(r.X, 5.0f, floatEpsilon);
+  ASSERT_CLOSE_FLOAT(r.Y, 10.0f, floatEpsilon);
+  ASSERT_CLOSE_FLOAT(r.Z, 15.0f, floatEpsilon);
 }
 
 TEST(vec4Mul) {
@@ -301,6 +315,15 @@ TEST(vec4LenSq) {
 TEST(vec4Dist) {
   const float dist = vec4Dist(MAKE_VEC4(0, 0, 0, 0), MAKE_VEC4(1, 2, 2, 0));
   ASSERT_CLOSE_FLOAT(dist, 3.0f, floatEpsilon);
+}
+
+TEST(vec4Lerp) {
+  const struct Vec4 r =
+      vec4Lerp(MAKE_VEC4(0, 0, 0, 0), MAKE_VEC4(10, 20, 30, 40), 0.5f);
+  ASSERT_CLOSE_FLOAT(r.X, 5.0f, floatEpsilon);
+  ASSERT_CLOSE_FLOAT(r.Y, 10.0f, floatEpsilon);
+  ASSERT_CLOSE_FLOAT(r.Z, 15.0f, floatEpsilon);
+  ASSERT_CLOSE_FLOAT(r.W, 20.0f, floatEpsilon);
 }
 
 TEST(mat4Add) {
@@ -465,4 +488,62 @@ TEST(mulMat4Translation) {
   ASSERT_CLOSE_FLOAT(v.X, 1.0f, floatEpsilon);
   ASSERT_CLOSE_FLOAT(v.Y, 2.0f, floatEpsilon);
   ASSERT_CLOSE_FLOAT(v.Z, 3.0f, floatEpsilon);
+}
+
+TEST(colorUintToColorStruct) {
+  const struct Color c = colorUintToColorStruct(0xFF8040);
+  ASSERT_EQUAL_UINT32(c.R, 0xFFu);
+  ASSERT_EQUAL_UINT32(c.G, 0x80u);
+  ASSERT_EQUAL_UINT32(c.B, 0x40u);
+}
+
+TEST(colorStructToColorUint) {
+  const struct Color c = {0xFF, 0x80, 0x40};
+  const uint32_t color = colorStructToColorUint(c);
+  ASSERT_EQUAL_UINT32(color, 0xFF8040u);
+}
+
+TEST(colorAdd) {
+  const uint32_t c = colorAdd(0x102030, 0x304050);
+  ASSERT_EQUAL_UINT32(c, 0x406080u);
+}
+
+TEST(colorAddClamped) {
+  const uint32_t c = colorAdd(0xFFFFFF, 0x010101);
+  ASSERT_EQUAL_UINT32(c, 0xFFFFFFu);
+}
+
+TEST(colorSub) {
+  const uint32_t c = colorSub(0x806040, 0x102030);
+  ASSERT_EQUAL_UINT32(c, 0x704010u);
+}
+
+TEST(colorSubClamped) {
+  const uint32_t c = colorSub(0x102030, 0x304050);
+  ASSERT_EQUAL_UINT32(c, 0x000000u);
+}
+
+TEST(colorMul) {
+  const uint32_t c = colorMul(0x808080, 0x808080);
+  ASSERT_EQUAL_UINT32(c, 0x404040u);
+}
+
+TEST(lerpColor) {
+  const uint32_t c = lerpColor(0xFF0000, 0x0000FF, 0.5f);
+  ASSERT_EQUAL_UINT32((c >> 16) & 0xFF, 0x7Fu);
+  ASSERT_EQUAL_UINT32(c & 0xFF, 0x7Fu);
+}
+
+TEST(lerpColorBarycentric) {
+  const uint32_t c =
+      lerpColorBarycentric(0xFF0000, 0x00FF00, 0x0000FF, 1.0f, 0.0f, 0.0f);
+  ASSERT_EQUAL_UINT32(c, 0xFF0000u);
+}
+
+TEST(lerpColorBarycentricMixed) {
+  const uint32_t c =
+      lerpColorBarycentric(0xFF0000, 0x00FF00, 0x0000FF, 0.5f, 0.3f, 0.2f);
+  ASSERT_EQUAL_UINT32((c >> 16) & 0xFF, 0x7Fu);
+  ASSERT_EQUAL_UINT32((c >> 8) & 0xFF, 0x4Cu);
+  ASSERT_EQUAL_UINT32(c & 0xFF, 0x33u);
 }

@@ -23,6 +23,7 @@
 #ifndef SOFTWARE_MODEL_VISUALIZER_GRAPHICS_MATH_H
 #define SOFTWARE_MODEL_VISUALIZER_GRAPHICS_MATH_H
 #include <math.h>
+#include <stdint.h>
 
 #if defined(__GNUC__) || defined(__clang__)
 #define GRAPHICS_MATH_INLINE static inline __attribute((always_inline))
@@ -98,6 +99,12 @@ struct GRAPHICS_MATH_ALIGNAS(16) Mat4 {
   float m13;
   float m23;
   float m33;
+};
+
+struct Color {
+  uint8_t R;
+  uint8_t G;
+  uint8_t B;
 };
 
 /*******************************************************************************
@@ -191,6 +198,11 @@ GRAPHICS_MATH_INLINE float vec2Dist(const struct Vec2 A, const struct Vec2 B) {
   return vec2Len(vec2Sub(A, B));
 }
 
+GRAPHICS_MATH_INLINE struct Vec2 vec2Lerp(const struct Vec2 A,
+                                          const struct Vec2 B, const float T) {
+  return MAKE_VEC2(A.X + (B.X - A.X) * T, A.Y + (B.Y - A.Y) * T);
+}
+
 /*******************************************************************************
  * Vec3 operations
  ******************************************************************************/
@@ -251,6 +263,12 @@ GRAPHICS_MATH_INLINE struct Vec3 vec3Cross(const struct Vec3 A,
                        A.X * B.Y - A.Y * B.X};
 }
 
+GRAPHICS_MATH_INLINE struct Vec3 vec3Lerp(const struct Vec3 A,
+                                          const struct Vec3 B, const float T) {
+  return MAKE_VEC3(A.X + (B.X - A.X) * T, A.Y + (B.Y - A.Y) * T,
+                   A.Z + (B.Z - A.Z) * T);
+}
+
 /*******************************************************************************
  * Vec4 operations
  ******************************************************************************/
@@ -303,6 +321,12 @@ GRAPHICS_MATH_INLINE struct Vec4 vec4Normalize(const struct Vec4 A) {
 
 GRAPHICS_MATH_INLINE float vec4Dist(const struct Vec4 A, const struct Vec4 B) {
   return vec4Len(vec4Sub(A, B));
+}
+
+GRAPHICS_MATH_INLINE struct Vec4 vec4Lerp(const struct Vec4 A,
+                                          const struct Vec4 B, const float T) {
+  return MAKE_VEC4(A.X + (B.X - A.X) * T, A.Y + (B.Y - A.Y) * T,
+                   A.Z + (B.Z - A.Z) * T, A.W + (B.W - A.W) * T);
 }
 
 /*******************************************************************************
@@ -631,6 +655,73 @@ GRAPHICS_MATH_INLINE struct Mat4 makeMat4LookAt(const struct Vec3 Eye,
                        -vec3Dot(u, Eye),
                        vec3Dot(f, Eye),
                        1};
+}
+
+/*******************************************************************************
+ * Color operations
+ ******************************************************************************/
+
+GRAPHICS_MATH_INLINE struct Color colorUintToColorStruct(const uint32_t Color) {
+  return (struct Color){(uint8_t)((Color >> 16) & 0xFF),
+                        (uint8_t)((Color >> 8) & 0xFF),
+                        (uint8_t)(Color & 0xFF)};
+}
+
+GRAPHICS_MATH_INLINE uint32_t colorStructToColorUint(const struct Color Color) {
+  return (uint32_t)Color.R << 16 | (uint32_t)Color.G << 8 | (uint32_t)Color.B;
+}
+
+GRAPHICS_MATH_INLINE uint32_t colorAdd(const uint32_t A, const uint32_t B) {
+  const struct Color ca = colorUintToColorStruct(A);
+  const struct Color cb = colorUintToColorStruct(B);
+  const uint16_t r = ca.R + cb.R;
+  const uint16_t g = ca.G + cb.G;
+  const uint16_t b = ca.B + cb.B;
+  const struct Color result = {(uint8_t)(r > 255 ? 255 : r),
+                               (uint8_t)(g > 255 ? 255 : g),
+                               (uint8_t)(b > 255 ? 255 : b)};
+  return colorStructToColorUint(result);
+}
+
+GRAPHICS_MATH_INLINE uint32_t colorSub(const uint32_t A, const uint32_t B) {
+  const struct Color ca = colorUintToColorStruct(A);
+  const struct Color cb = colorUintToColorStruct(B);
+  const struct Color result = {(uint8_t)(ca.R > cb.R ? ca.R - cb.R : 0),
+                               (uint8_t)(ca.G > cb.G ? ca.G - cb.G : 0),
+                               (uint8_t)(ca.B > cb.B ? ca.B - cb.B : 0)};
+  return colorStructToColorUint(result);
+}
+
+GRAPHICS_MATH_INLINE uint32_t colorMul(const uint32_t A, const uint32_t B) {
+  const struct Color ca = colorUintToColorStruct(A);
+  const struct Color cb = colorUintToColorStruct(B);
+  const struct Color result = {
+      (uint8_t)((uint16_t)ca.R * (uint16_t)cb.R / 255),
+      (uint8_t)((uint16_t)ca.G * (uint16_t)cb.G / 255),
+      (uint8_t)((uint16_t)ca.B * (uint16_t)cb.B / 255)};
+  return colorStructToColorUint(result);
+}
+
+GRAPHICS_MATH_INLINE uint32_t lerpColor(const uint32_t A, const uint32_t B,
+                                        const float T) {
+  const struct Color a = colorUintToColorStruct(A);
+  const struct Color b = colorUintToColorStruct(B);
+  const struct Color result = {(uint8_t)(a.R * (1.0f - T) + b.R * T),
+                               (uint8_t)(a.G * (1.0f - T) + b.G * T),
+                               (uint8_t)(a.B * (1.0f - T) + b.B * T)};
+  return colorStructToColorUint(result);
+}
+
+GRAPHICS_MATH_INLINE uint32_t
+lerpColorBarycentric(const uint32_t A, const uint32_t B, const uint32_t C,
+                     const float W0, const float W1, const float W2) {
+  const struct Color a = colorUintToColorStruct(A);
+  const struct Color b = colorUintToColorStruct(B);
+  const struct Color c = colorUintToColorStruct(C);
+  const struct Color result = {(uint8_t)(a.R * W0 + b.R * W1 + c.R * W2),
+                               (uint8_t)(a.G * W0 + b.G * W1 + c.G * W2),
+                               (uint8_t)(a.B * W0 + b.B * W1 + c.B * W2)};
+  return colorStructToColorUint(result);
 }
 
 #endif // SOFTWARE_MODEL_VISUALIZER_GRAPHICS_MATH_H
