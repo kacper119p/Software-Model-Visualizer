@@ -20,7 +20,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#include "appwindow.h"
+#include "appWindow.h"
 
 #include <X11/Xutil.h>
 #include <X11/cursorfont.h>
@@ -164,14 +164,14 @@ void destroyWindow(struct AppWindow* const Window) {
 }
 
 void peekWindowMessages(struct AppWindow* const Window) {
-  const Atom wmDelete = XInternAtom(Window->Display, "WM_DELETE_WINDOW", False);
-
   while (XPending(Window->Display)) {
     XEvent event;
     XNextEvent(Window->Display, &event);
 
     switch (event.type) {
     case ClientMessage: {
+      const Atom wmDelete =
+          XInternAtom(Window->Display, "WM_DELETE_WINDOW", False);
       if ((Atom)event.xclient.data.l[0] == wmDelete) {
         Window->ShouldClose = true;
       }
