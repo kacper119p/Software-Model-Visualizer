@@ -38,13 +38,46 @@ static inline void printUsage(const char* ProgramName) {
           (ProgramName != nullptr) ? ProgramName : "rasterizer");
 }
 
+static inline void printLoadModelError(const char* const FilePath,
+                                       const enum LoadModelResult Result) {
+  switch (Result) {
+  case LOAD_MODEL_RESULT_FILE_NOT_FOUND:
+    fprintf(stderr, "Error: File not found: %s.\n", FilePath);
+    break;
+  case LOAD_MODEL_FAILED_TO_READ_FILE:
+    fprintf(stderr, "Error: Failed to access file content: %s.\n", FilePath);
+    break;
+  case LOAD_MODEL_RESULT_INVALID_FORMAT:
+    fprintf(stderr, "Error: Invalid format in file: %s.\n", FilePath);
+    break;
+  case LOAD_MODEL_RESULT_NOT_TRIANGULATED:
+    fprintf(stderr, "Error: Model is not triangulated.\n");
+    break;
+  case LOAD_MODEL_RESULT_OUT_OF_MEMORY:
+    fprintf(stderr, "Error: Ran of memory while loading model from file: %s.\n",
+            FilePath);
+    break;
+  case LOAD_MODEL_RESULT_NO_GEOMETRY_DATA:
+    fprintf(stderr, "Error: Model contains no vertices.\n");
+    break;
+  default:
+    fprintf(stderr,
+            "Error: Unknown error while trying to load model from: %s.\n",
+            FilePath);
+    break;
+  }
+}
+
 static inline bool processArguments(const int Argc, const char* const Argv[],
                                     struct Model* Model) {
   if (Argc != 2) {
     printUsage(Argc > 0 ? Argv[0] : nullptr);
     return false;
   }
-  if (!loadModel(Argv[1], Model)) {
+  const char* const filePath = Argv[1];
+  const enum LoadModelResult loadModelResult = loadModel(filePath, Model);
+  if (loadModelResult != LOAD_MODEL_RESULT_SUCCESS) {
+    printLoadModelError(Argv[1], loadModelResult);
     return false;
   }
 
@@ -94,7 +127,7 @@ static inline void renderFrame(struct Framebuffer* const Framebuffer,
 int main(const int argc, const char* const argv[]) {
   srand(time(nullptr));
 
-  struct Model model;
+  struct Model model = {0};
   if (!processArguments(argc, argv, &model)) {
     return EXIT_FAILURE;
   }

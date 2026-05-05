@@ -24,16 +24,41 @@
 
 #include <assert.h>
 #include <stdlib.h>
-#include <sys/stat.h>
 
 #include "cgltf.h"
 
-static inline bool checkFileExists(const char* const FilePath) {
-  struct stat buffer;
-  if (stat(FilePath, &buffer) == 0) {
-    return S_ISREG(buffer.st_mode);
+static inline enum LoadModelResult
+cgltfErrorToLoadModelResult(const cgltf_result CgltfResult) {
+  switch (CgltfResult) {
+  case cgltf_result_file_not_found:
+    return LOAD_MODEL_RESULT_FILE_NOT_FOUND;
+  case cgltf_result_io_error:
+    return LOAD_MODEL_FAILED_TO_READ_FILE;
+  case cgltf_result_unknown_format:
+  case cgltf_result_invalid_json:
+  case cgltf_result_invalid_gltf:
+  case cgltf_result_legacy_gltf:
+  case cgltf_result_data_too_short:
+    return LOAD_MODEL_RESULT_INVALID_FORMAT;
+  case cgltf_result_out_of_memory:
+    return LOAD_MODEL_RESULT_OUT_OF_MEMORY;
+  default:
+    assert(false);
+    return LOAD_MODEL_UNKNOWN_ERROR;
   }
-  return false;
+}
+
+static inline void freeModelLoadingData(
+    struct Vec3* const restrict Vertices, uint32_t* const restrict Indices,
+    struct Vec3* const restrict Normals, uint32_t* const restrict Colors,
+    struct Vec2* const restrict TextureCoords,
+    cgltf_data* const restrict CgltfData) {
+  free(Vertices);
+  free(Indices);
+  free(Normals);
+  free(Colors);
+  free(TextureCoords);
+  cgltf_free(CgltfData);
 }
 
 static inline uint32_t hsvToRgb(const float Hue, const float Saturation,
@@ -131,20 +156,27 @@ static inline void calculateAabb(const struct Vec3* const Vertices,
   vec3Copy(max, Max);
 }
 
-bool loadModel(const char* const FilePath, struct Model* const Destination) {
+enum LoadModelResult loadModel(const char* const FilePath,
+                               struct Model* const Destination) {
   assert(Destination != nullptr);
-  if (!checkFileExists(FilePath)) {
-    return false;
+  if (Destination == nullptr) {
+    return LOAD_MODEL_RESULT_INVALID_TARGET;
   }
 
   constexpr cgltf_options options = {0};
   cgltf_data* data = nullptr;
-  if (cgltf_parse_file(&options, FilePath, &data) != cgltf_result_success ||
-      cgltf_load_buffers(&options, data, FilePath) != cgltf_result_success) {
+  const cgltf_result fileLoadResult =
+      cgltf_parse_file(&options, FilePath, &data);
+  if (fileLoadResult != cgltf_result_success) {
+    return cgltfErrorToLoadModelResult(fileLoadResult);
+  }
+  const cgltf_result buffersLoadResult =
+      cgltf_load_buffers(&options, data, FilePath);
+  if (buffersLoadResult != cgltf_result_success) {
     if (data) {
       cgltf_free(data);
     }
-    return false;
+    return cgltfErrorToLoadModelResult(fileLoadResult);
   }
 
   Destination->VertexCount = 0;
@@ -177,9 +209,11 @@ bool loadModel(const char* const FilePath, struct Model* const Destination) {
       }
     }
   }
+
   if (Destination->VertexCount == 0) {
     cgltf_free(data);
-    return false;
+    assert(false);
+    return LOAD_MODEL_RESULT_NO_GEOMETRY_DATA;
   }
 
   struct Vec3* const restrict vertices =
@@ -195,13 +229,9 @@ bool loadModel(const char* const FilePath, struct Model* const Destination) {
 
   if (vertices == nullptr || indices == nullptr || normals == nullptr ||
       colors == nullptr || textureCoords == nullptr) {
-    free(vertices);
-    free(indices);
-    free(normals);
-    free(colors);
-    free(textureCoords);
-    cgltf_free(data);
-    return false;
+    freeModelLoadingData(vertices, indices, normals, colors, textureCoords,
+                         data);
+    return LOAD_MODEL_RESULT_OUT_OF_MEMORY;
   }
 
   size_t vertexOffset = 0;
@@ -209,8 +239,9 @@ bool loadModel(const char* const FilePath, struct Model* const Destination) {
 
   for (size_t i = 0; i < data->nodes_count; ++i) {
     const cgltf_node* node = &data->nodes[i];
-    if (node->mesh == nullptr)
+    if (node->mesh == nullptr) {
       continue;
+    }
 
     struct Mat4 modelMatrix;
     cgltf_node_transform_world(node, (cgltf_float*)&modelMatrix);
@@ -237,7 +268,14 @@ bool loadModel(const char* const FilePath, struct Model* const Destination) {
       const size_t primitiveVertexCount = positionAccessor->count;
       if (primitive->indices != nullptr) {
         const size_t primitiveIndexCount = primitive->indices->count;
-        assert(primitiveIndexCount % 3 == 0);
+        const bool isMeshTriangulated = primitiveIndexCount % 3 == 0;
+        assert(isMeshTriangulated);
+        if (!isMeshTriangulated) {
+          freeModelLoadingData(vertices, indices, normals, colors,
+                               textureCoords, data);
+          return LOAD_MODEL_RESULT_NOT_TRIANGULATED;
+        }
+
         for (size_t idx = 0; idx < primitiveIndexCount; ++idx) {
           uint32_t index;
           cgltf_accessor_read_uint(primitive->indices, idx, &index, 1);
@@ -309,7 +347,7 @@ bool loadModel(const char* const FilePath, struct Model* const Destination) {
 
   calculateAabb(Destination->Vertices, Destination->VertexCount,
                 &Destination->AabbMin, &Destination->AabbMax);
-  return true;
+  return LOAD_MODEL_RESULT_SUCCESS;
 }
 
 void destroyModel(const struct Model* const Model) {
