@@ -190,13 +190,16 @@ bool loadModel(const char* const FilePath, struct Model* const Destination) {
       calloc(Destination->IndexCount / 3, sizeof(struct Vec3));
   uint32_t* const restrict colors =
       calloc(Destination->IndexCount / 3, sizeof(uint32_t));
+  struct Vec2* const restrict textureCoords =
+      calloc(Destination->VertexCount, sizeof(struct Vec2));
 
   if (vertices == nullptr || indices == nullptr || normals == nullptr ||
-      colors == nullptr) {
+      colors == nullptr || textureCoords == nullptr) {
     free(vertices);
     free(indices);
     free(normals);
     free(colors);
+    free(textureCoords);
     cgltf_free(data);
     return false;
   }
@@ -216,15 +219,20 @@ bool loadModel(const char* const FilePath, struct Model* const Destination) {
       const cgltf_primitive* primitive = &node->mesh->primitives[j];
 
       const cgltf_accessor* positionAccessor = nullptr;
+      const cgltf_accessor* texCoordAccessor = nullptr;
 
       for (size_t k = 0; k < primitive->attributes_count; ++k) {
         const cgltf_attribute* attribute = &primitive->attributes[k];
-        if (attribute->type == cgltf_attribute_type_position)
+        if (attribute->type == cgltf_attribute_type_position) {
           positionAccessor = attribute->data;
+        } else if (attribute->type == cgltf_attribute_type_texcoord) {
+          texCoordAccessor = attribute->data;
+        }
       }
 
-      if (positionAccessor == nullptr)
+      if (positionAccessor == nullptr) {
         continue;
+      }
 
       const size_t primitiveVertexCount = positionAccessor->count;
       if (primitive->indices != nullptr) {
@@ -252,6 +260,19 @@ bool loadModel(const char* const FilePath, struct Model* const Destination) {
                                                localPosition.Z, 1.0f));
         vertices[vertexOffset + v] =
             MAKE_VEC3(worldPosition.X, worldPosition.Y, worldPosition.Z);
+      }
+
+      if (positionAccessor != nullptr) {
+        for (uint32_t v = 0; v < primitiveVertexCount; ++v) {
+          struct Vec2 textureCoord;
+          cgltf_accessor_read_float(texCoordAccessor, v,
+                                    (cgltf_float*)&textureCoord, 2);
+          textureCoords[vertexOffset + v] = textureCoord;
+        }
+      } else {
+        for (uint32_t v = 0; v < primitiveVertexCount; ++v) {
+          textureCoords[vertexOffset + v] = VEC2_ZERO;
+        }
       }
 
       vertexOffset += primitiveVertexCount;
@@ -282,6 +303,7 @@ bool loadModel(const char* const FilePath, struct Model* const Destination) {
   Destination->Indices = indices;
   Destination->Normals = normals;
   Destination->Colors = colors;
+  Destination->TextureCoords = textureCoords;
 
   cgltf_free(data);
 
@@ -295,4 +317,5 @@ void destroyModel(const struct Model* const Model) {
   free(Model->Indices);
   free(Model->Normals);
   free(Model->Colors);
+  free(Model->TextureCoords);
 }

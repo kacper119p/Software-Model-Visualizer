@@ -33,6 +33,7 @@ struct Model {
   uint32_t* Indices;
   size_t IndexCount;
   struct Vec3* Normals;
+  struct Vec2* TextureCoords;
   uint32_t* Colors;
   struct Vec3 AabbMin;
   struct Vec3 AabbMax;
