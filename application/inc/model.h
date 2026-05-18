@@ -52,6 +52,16 @@ enum LoadModelResult {
 };
 
 enum LoadModelResult loadModel(const char* FilePath, struct Model* Destination);
+bool generateSphereModel(float Radius, uint32_t Segments, uint32_t Rings,
+                         struct Model* Destination);
+bool generateConeModel(float Radius, float Height, uint32_t Segments,
+                       struct Model* Destination);
+bool generateTorusModel(float MajorRadius, float MinorRadius,
+                        uint32_t MajorSegments, uint32_t MinorSegments,
+                        struct Model* Destination);
+bool generateTorusKnotModel(float Radius, float TubeRadius, uint32_t P,
+                            uint32_t Q, uint32_t CurveSegments,
+                            uint32_t TubeSegments, struct Model* Destination);
 void destroyModel(const struct Model* Model);
 
 #endif // SOFTWARE_MODEL_VISUALIZER_MODEL_H
