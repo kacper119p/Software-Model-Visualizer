@@ -33,12 +33,35 @@ struct Model {
   uint32_t* Indices;
   size_t IndexCount;
   struct Vec3* Normals;
+  struct Vec2* TextureCoords;
   uint32_t* Colors;
   struct Vec3 AabbMin;
   struct Vec3 AabbMax;
 };
 
-bool loadModel(const char* FilePath, struct Model* Destination);
+enum LoadModelResult {
+  LOAD_MODEL_RESULT_SUCCESS = 0,
+  LOAD_MODEL_RESULT_FILE_NOT_FOUND = 1,
+  LOAD_MODEL_FAILED_TO_READ_FILE = 2,
+  LOAD_MODEL_RESULT_INVALID_FORMAT = 3,
+  LOAD_MODEL_RESULT_NOT_TRIANGULATED = 4,
+  LOAD_MODEL_RESULT_OUT_OF_MEMORY = 5,
+  LOAD_MODEL_RESULT_NO_GEOMETRY_DATA = 6,
+  LOAD_MODEL_UNKNOWN_ERROR = 7,
+  LOAD_MODEL_RESULT_INVALID_TARGET = 8
+};
+
+enum LoadModelResult loadModel(const char* FilePath, struct Model* Destination);
+bool generateSphereModel(float Radius, uint32_t Segments, uint32_t Rings,
+                         struct Model* Destination);
+bool generateConeModel(float Radius, float Height, uint32_t Segments,
+                       struct Model* Destination);
+bool generateTorusModel(float MajorRadius, float MinorRadius,
+                        uint32_t MajorSegments, uint32_t MinorSegments,
+                        struct Model* Destination);
+bool generateTorusKnotModel(float Radius, float TubeRadius, uint32_t P,
+                            uint32_t Q, uint32_t CurveSegments,
+                            uint32_t TubeSegments, struct Model* Destination);
 void destroyModel(const struct Model* Model);
 
 #endif // SOFTWARE_MODEL_VISUALIZER_MODEL_H
