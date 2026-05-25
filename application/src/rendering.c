@@ -289,6 +289,47 @@ computeVertexColor(const uint32_t BaseColor, const struct Vec3 WorldPos,
   return colorStructToColorUint(result);
 }
 
+struct ClippedVertex {
+  struct Vec4 Clip;
+  uint32_t Color;
+};
+
+static inline struct ClippedVertex
+lerpClippedVertex(const struct ClippedVertex A, const struct ClippedVertex B,
+                  const float T) {
+  struct ClippedVertex r;
+  r.Clip.X = A.Clip.X + (B.Clip.X - A.Clip.X) * T;
+  r.Clip.Y = A.Clip.Y + (B.Clip.Y - A.Clip.Y) * T;
+  r.Clip.Z = A.Clip.Z + (B.Clip.Z - A.Clip.Z) * T;
+  r.Clip.W = A.Clip.W + (B.Clip.W - A.Clip.W) * T;
+  r.Color = lerpColor(A.Color, B.Color, T);
+  return r;
+}
+
+static int32_t clipTriangleNearPlane(const struct ClippedVertex In[3],
+                                     struct ClippedVertex Out[4]) {
+  int32_t outCount = 0;
+  for (int32_t i = 0; i < 3; ++i) {
+    const struct ClippedVertex curr = In[i];
+    const struct ClippedVertex next = In[(i + 1) % 3];
+    const float dCurr = curr.Clip.Z + curr.Clip.W;
+    const float dNext = next.Clip.Z + next.Clip.W;
+    const bool currInside = dCurr >= 0.0f;
+    const bool nextInside = dNext >= 0.0f;
+    if (currInside) {
+      Out[outCount++] = curr;
+      if (!nextInside) {
+        const float t = dCurr / (dCurr - dNext);
+        Out[outCount++] = lerpClippedVertex(curr, next, t);
+      }
+    } else if (nextInside) {
+      const float t = dCurr / (dCurr - dNext);
+      Out[outCount++] = lerpClippedVertex(curr, next, t);
+    }
+  }
+  return outCount;
+}
+
 void drawModel(const struct Framebuffer* Framebuffer, const struct Model* Model,
                const struct Mat4 ModelMatrix, const struct Mat4 MvpMatrix,
                const struct LightBuffer* const LightBuffer) {
@@ -339,14 +380,24 @@ void drawModel(const struct Framebuffer* Framebuffer, const struct Model* Model,
                                          Model->Vertices[index2].Y,
                                          Model->Vertices[index2].Z, 1.0f));
 
-    const struct Vec3 ndc0 =
-        MAKE_VEC3(clip0.X / clip0.W, clip0.Y / clip0.W, clip0.Z / clip0.W);
-    const struct Vec3 ndc1 =
-        MAKE_VEC3(clip1.X / clip1.W, clip1.Y / clip1.W, clip1.Z / clip1.W);
-    const struct Vec3 ndc2 =
-        MAKE_VEC3(clip2.X / clip2.W, clip2.Y / clip2.W, clip2.Z / clip2.W);
+    const struct ClippedVertex in[3] = {{clip0, c0}, {clip1, c1}, {clip2, c2}};
+    struct ClippedVertex out[4];
+    const int outCount = clipTriangleNearPlane(in, out);
+    if (outCount < 3) {
+      continue;
+    }
 
-    drawTriangle(Framebuffer, ndc0, ndc1, ndc2, c0, c1, c2);
+    struct Vec3 ndc[4];
+    for (int k = 0; k < outCount; ++k) {
+      const float invW = 1.0f / out[k].Clip.W;
+      ndc[k] = MAKE_VEC3(out[k].Clip.X * invW, out[k].Clip.Y * invW,
+                         out[k].Clip.Z * invW);
+    }
+
+    for (int k = 1; k <= outCount - 2; ++k) {
+      drawTriangle(Framebuffer, ndc[0], ndc[k], ndc[k + 1], out[0].Color,
+                   out[k].Color, out[k + 1].Color);
+    }
   }
 }
 

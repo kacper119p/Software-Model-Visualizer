@@ -33,6 +33,12 @@ static constexpr float cameraDistance = 8.0f;
 static constexpr float cameraHeight = 4.0f;
 static constexpr float cameraOrbitSpeed = 0.3f;
 
+static constexpr size_t knotRingCount = 8;
+static constexpr float knotRingRadius = 9.0f;
+
+static const uint32_t knotRingParams[knotRingCount][2] = {
+    {2, 3}, {3, 4}, {2, 5}, {4, 5}, {2, 13}, {3, 7}, {4, 7}, {5, 6}};
+
 static void setupLights(struct LightBuffer* const Lights) {
   const struct DirectionalLight dir = {.direction = {-1.0f, 0.0f, 0.0f},
                                        .color = {0.7f, 0.7f, 0.7f}};
@@ -92,7 +98,8 @@ static void renderFrame(struct Framebuffer* const Framebuffer,
                         const struct Model* const Sphere,
                         const struct Model* const Cone,
                         const struct Model* const Torus,
-                        const struct Model* const TorusKnot, const float Time,
+                        const struct Model* const TorusKnot,
+                        const struct Model* const KnotRing, const float Time,
                         const struct LightBuffer* const Lights) {
   clearColorBuffer(Framebuffer, 0x00000000);
   clearDepthBuffer(Framebuffer, 1.0f);
@@ -107,9 +114,17 @@ static void renderFrame(struct Framebuffer* const Framebuffer,
       proj, makeMat4LookAt(eye, VEC3_ZERO, MAKE_VEC3(0.0f, 1.0f, 0.0f)));
 
   drawAt(Framebuffer, Sphere, MAKE_VEC3(-3.0f, 0.0f, 0.0f), vp, Lights);
+  drawAt(Framebuffer, Sphere, MAKE_VEC3(-3.0f, 2.5f, 0.0f), vp, Lights);
   drawAt(Framebuffer, Cone, MAKE_VEC3(3.0f, 0.0f, 0.0f), vp, Lights);
   drawAt(Framebuffer, Torus, MAKE_VEC3(0.0f, 0.0f, -3.0f), vp, Lights);
   drawAt(Framebuffer, TorusKnot, MAKE_VEC3(0.0f, 0.0f, 3.0f), vp, Lights);
+
+  for (size_t i = 0; i < knotRingCount; ++i) {
+    const float angle = (float)i * (2.0f * Pi / (float)knotRingCount);
+    const struct Vec3 pos = MAKE_VEC3(knotRingRadius * cosf(angle), 0.0f,
+                                      knotRingRadius * sinf(angle));
+    drawAt(Framebuffer, &KnotRing[i], pos, vp, Lights);
+  }
 }
 
 int main(void) {
@@ -130,6 +145,22 @@ int main(void) {
   setWhite(&torus);
   setWhite(&torusKnot);
 
+  struct Model knotRing[knotRingCount] = {0};
+  for (size_t i = 0; i < knotRingCount; ++i) {
+    if (!generateTorusKnotModel(0.45f, 0.12f, knotRingParams[i][0],
+                                knotRingParams[i][1], 96, 12, &knotRing[i])) {
+      for (size_t j = 0; j < i; ++j) {
+        destroyModel(&knotRing[j]);
+      }
+      destroyModel(&sphere);
+      destroyModel(&cone);
+      destroyModel(&torus);
+      destroyModel(&torusKnot);
+      return EXIT_FAILURE;
+    }
+    setWhite(&knotRing[i]);
+  }
+
   struct AppWindow window;
   createWindow(&window);
 
@@ -144,7 +175,7 @@ int main(void) {
     const float currentTime = getElapsedTime(&timeQuery);
     peekWindowMessages(&window);
     renderFrame(&window.Framebuffer, &sphere, &cone, &torus, &torusKnot,
-                currentTime, &lightBuffer);
+                knotRing, currentTime, &lightBuffer);
     presentWindow(&window);
   }
 
@@ -152,6 +183,9 @@ int main(void) {
   destroyModel(&cone);
   destroyModel(&torus);
   destroyModel(&torusKnot);
+  for (size_t i = 0; i < knotRingCount; ++i) {
+    destroyModel(&knotRing[i]);
+  }
   destroyWindow(&window);
   lightBufferDestroy(&lightBuffer);
   return EXIT_SUCCESS;
