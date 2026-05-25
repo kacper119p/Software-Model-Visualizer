@@ -1,5 +1,5 @@
 /* MIT License
-*
+ *
  * Copyright (c) 2026 Kacper Pastuszka
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -25,55 +25,57 @@
 
 #include <stdint.h>
 
-#include "Lights/DirectionalLight.h"
-#include "Lights/PointLight.h"
-#include "Lights/Spotlight.h"
+#include "lights/DirectionalLight.h"
+#include "lights/PointLight.h"
+#include "lights/Spotlight.h"
 
-typedef enum LightType {
+enum LightType {
   LIGHT_TYPE_DIRECTIONAL = 0,
   LIGHT_TYPE_POINT = 1,
   LIGHT_TYPE_SPOTLIGHT = 2,
-} LightType;
+};
 
-typedef struct LightEntry {
-  LightType Type;
+struct LightEntry {
+  enum LightType Type;
   const void* Data;
-} LightEntry;
+};
 
-typedef struct LightBuffer {
+struct LightBuffer {
   uint32_t* Data;
   uint32_t* Offsets;
   uint32_t DataCapacity;
   uint32_t OffsetCapacity;
   uint32_t DataSize;
   uint32_t ObjectCount;
-} LightBuffer;
+};
 
 /* Initializes an empty LightBuffer. Must be destroyed with LightBuffer_Destroy.
  */
-void lightBufferInit(LightBuffer* Buffer);
+void lightBufferInit(struct LightBuffer* Buffer);
 
-void lightBufferDestroy(LightBuffer* Buffer);
+void lightBufferDestroy(struct LightBuffer* Buffer);
 
-void lightBufferClear(LightBuffer* Buffer);
+void lightBufferClear(struct LightBuffer* Buffer);
 
-void lightBufferRemove(LightBuffer* Buffer, uint32_t Index);
+void lightBufferRemove(struct LightBuffer* Buffer, uint32_t Index);
 
-void lightBufferAddDirectional(LightBuffer* Buffer,
+void lightBufferAddDirectional(struct LightBuffer* Buffer,
                                const struct DirectionalLight* Light);
 
-void lightBufferAddPoint(LightBuffer* Buffer, const struct PointLight* Light);
+void lightBufferAddPoint(struct LightBuffer* Buffer,
+                         const struct PointLight* Light);
 
-void lightBufferAddSpotlight(LightBuffer* Buffer,
+void lightBufferAddSpotlight(struct LightBuffer* Buffer,
                              const struct Spotlight* Light);
 
-LightEntry lightBufferGet(const LightBuffer* Buffer, uint32_t Index);
+struct LightEntry lightBufferGet(const struct LightBuffer* Buffer,
+                                 uint32_t Index);
 
-static inline uint32_t lightBufferGetCount(const LightBuffer* Buffer) {
+static inline uint32_t lightBufferGetCount(const struct LightBuffer* Buffer) {
   return Buffer->ObjectCount;
 }
 
-static inline bool lightBufferIsEmpty(const LightBuffer* Buffer) {
+static inline bool lightBufferIsEmpty(const struct LightBuffer* Buffer) {
   return Buffer->ObjectCount == 0;
 }
 

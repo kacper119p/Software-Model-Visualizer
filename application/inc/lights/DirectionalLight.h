@@ -1,5 +1,5 @@
 ﻿/* MIT License
-*
+ *
  * Copyright (c) 2026 Kacper Pastuszka
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -20,16 +20,13 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#ifndef SOFTWARE_MODEL_VISUALIZER_POINTLIGHT_H
-#define SOFTWARE_MODEL_VISUALIZER_POINTLIGHT_H
+#ifndef SOFTWARE_MODEL_VISUALIZER_DIRECTIONALLIGHT_H
+#define SOFTWARE_MODEL_VISUALIZER_DIRECTIONALLIGHT_H
 #include "graphicsMath.h"
 
-struct PointLight {
-  struct Vec3 Position;
-  struct Vec3 Color;
-  float Range;
-  float LinearFalloff;
-  float QuadraticFalloff;
+struct DirectionalLight {
+  struct Vec3 direction;
+  struct Vec3 color;
 };
 
-#endif // SOFTWARE_MODEL_VISUALIZER_POINTLIGHT_H
+#endif // SOFTWARE_MODEL_VISUALIZER_DIRECTIONALLIGHT_H

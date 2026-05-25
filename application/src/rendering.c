@@ -119,8 +119,8 @@ void drawLine(const struct Framebuffer* const Framebuffer, const struct Vec3 V0,
 }
 
 void drawTriangle(const struct Framebuffer* Framebuffer, const struct Vec3 V0,
-                  const struct Vec3 V1, const struct Vec3 V2,
-                  const uint32_t Color) {
+                  const struct Vec3 V1, const struct Vec3 V2, const uint32_t C0,
+                  const uint32_t C1, const uint32_t C2) {
   struct Vec3 norm0;
   struct Vec3 norm1;
   struct Vec3 norm2;
@@ -200,7 +200,13 @@ void drawTriangle(const struct Framebuffer* Framebuffer, const struct Vec3 V0,
 
         if (notCulled) {
           Framebuffer->DepthBuffer[pixelIndex] = depth;
-          Framebuffer->ColorBuffer[pixelIndex] = Color;
+          const struct Color ca = colorUintToColorStruct(C0);
+          const struct Color cb = colorUintToColorStruct(C1);
+          const struct Color cc = colorUintToColorStruct(C2);
+          Framebuffer->ColorBuffer[pixelIndex] = colorStructToColorUint(
+              (struct Color){(uint8_t)(ca.R * b0 + cb.R * b1 + cc.R * b2),
+                             (uint8_t)(ca.G * b0 + cb.G * b1 + cc.G * b2),
+                             (uint8_t)(ca.B * b0 + cb.B * b1 + cc.B * b2)});
         }
       }
       w0 += stepXW0;
@@ -215,25 +221,123 @@ void drawTriangle(const struct Framebuffer* Framebuffer, const struct Vec3 V0,
   }
 }
 
+static inline uint32_t
+computeVertexColor(const uint32_t BaseColor, const struct Vec3 WorldPos,
+                   const struct Vec3 WorldNormal,
+                   const struct LightBuffer* const Lights) {
+  const struct Color base = colorUintToColorStruct(BaseColor);
+  const struct Vec3 baseLinear =
+      MAKE_VEC3(base.R / 255.0f, base.G / 255.0f, base.B / 255.0f);
+  struct Vec3 accumulated = VEC3_ZERO;
+
+  for (uint32_t i = 0; i < lightBufferGetCount(Lights); ++i) {
+    const struct LightEntry entry = lightBufferGet(Lights, i);
+    struct Vec3 lightContrib = VEC3_ZERO;
+
+    switch (entry.Type) {
+    case LIGHT_TYPE_DIRECTIONAL: {
+      const struct DirectionalLight* l = entry.Data;
+      const float diff =
+          fmaxf(0.0f, vec3Dot(WorldNormal,
+                              vec3Normalize(vec3Scale(l->direction, -1.0f))));
+      lightContrib = vec3Scale(l->color, diff);
+      break;
+    }
+    case LIGHT_TYPE_POINT: {
+      const struct PointLight* l = entry.Data;
+      const struct Vec3 toLight = vec3Sub(l->Position, WorldPos);
+      const float dist = vec3Len(toLight);
+      if (dist < l->Range) {
+        const float diff =
+            fmaxf(0.0f, vec3Dot(WorldNormal, vec3Div(toLight, dist)));
+        const float attenuation = 1.0f / (1.0f + l->LinearFalloff * dist +
+                                          l->QuadraticFalloff * dist * dist);
+        lightContrib = vec3Scale(l->Color, diff * attenuation);
+      }
+      break;
+    }
+    case LIGHT_TYPE_SPOTLIGHT: {
+      const struct Spotlight* l = entry.Data;
+      const struct Vec3 toLight = vec3Sub(l->Position, WorldPos);
+      const float dist = vec3Len(toLight);
+      if (dist < l->Range) {
+        const struct Vec3 toLightDir = vec3Div(toLight, dist);
+        const float diff = fmaxf(0.0f, vec3Dot(WorldNormal, toLightDir));
+        const float cosAngle =
+            vec3Dot(toLightDir, vec3Normalize(vec3Scale(l->Direction, -1.0f)));
+        const float cosOuter = cosf(l->OuterAngle);
+        const float cosInner = cosf(l->InnerAngle);
+        const float spot = fmaxf(
+            0.0f, fminf(1.0f, (cosAngle - cosOuter) / (cosInner - cosOuter)));
+        const float attenuation = spot / (1.0f + l->LinearFalloff * dist +
+                                          l->QuadraticFalloff * dist * dist);
+        lightContrib = vec3Scale(l->Color, diff * attenuation);
+      }
+      break;
+    }
+    }
+
+    accumulated =
+        vec3Add(accumulated, MAKE_VEC3(lightContrib.X * baseLinear.X,
+                                       lightContrib.Y * baseLinear.Y,
+                                       lightContrib.Z * baseLinear.Z));
+  }
+
+  const struct Color result = {(uint8_t)(fminf(accumulated.X, 1.0f) * 255.0f),
+                               (uint8_t)(fminf(accumulated.Y, 1.0f) * 255.0f),
+                               (uint8_t)(fminf(accumulated.Z, 1.0f) * 255.0f)};
+  return colorStructToColorUint(result);
+}
+
 void drawModel(const struct Framebuffer* Framebuffer, const struct Model* Model,
-               const struct Mat4 Transform) {
+               const struct Mat4 ModelMatrix, const struct Mat4 MvpMatrix,
+               const struct LightBuffer* const LightBuffer) {
   for (size_t i = 0; i < Model->IndexCount; i += 3) {
     const uint32_t index0 = Model->Indices[i];
     const uint32_t index1 = Model->Indices[i + 1];
     const uint32_t index2 = Model->Indices[i + 2];
-    const struct Vec4 obj0 =
-        MAKE_VEC4(Model->Vertices[index0].X, Model->Vertices[index0].Y,
-                  Model->Vertices[index0].Z, 1.0f);
-    const struct Vec4 obj1 =
-        MAKE_VEC4(Model->Vertices[index1].X, Model->Vertices[index1].Y,
-                  Model->Vertices[index1].Z, 1.0f);
-    const struct Vec4 obj2 =
-        MAKE_VEC4(Model->Vertices[index2].X, Model->Vertices[index2].Y,
-                  Model->Vertices[index2].Z, 1.0f);
 
-    const struct Vec4 clip0 = mat4MulVec4(Transform, obj0);
-    const struct Vec4 clip1 = mat4MulVec4(Transform, obj1);
-    const struct Vec4 clip2 = mat4MulVec4(Transform, obj2);
+    const struct Vec4 world0 =
+        mat4MulVec4(ModelMatrix, MAKE_VEC4(Model->Vertices[index0].X,
+                                           Model->Vertices[index0].Y,
+                                           Model->Vertices[index0].Z, 1.0f));
+    const struct Vec4 world1 =
+        mat4MulVec4(ModelMatrix, MAKE_VEC4(Model->Vertices[index1].X,
+                                           Model->Vertices[index1].Y,
+                                           Model->Vertices[index1].Z, 1.0f));
+    const struct Vec4 world2 =
+        mat4MulVec4(ModelMatrix, MAKE_VEC4(Model->Vertices[index2].X,
+                                           Model->Vertices[index2].Y,
+                                           Model->Vertices[index2].Z, 1.0f));
+
+    const struct Vec4 wn = mat4MulVec4(
+        ModelMatrix, MAKE_VEC4(Model->Normals[i / 3].X, Model->Normals[i / 3].Y,
+                               Model->Normals[i / 3].Z, 0.0f));
+    const struct Vec3 worldNormal = vec3Normalize(MAKE_VEC3(wn.X, wn.Y, wn.Z));
+
+    const uint32_t baseColor = Model->Colors[i / 3];
+    const uint32_t c0 =
+        computeVertexColor(baseColor, MAKE_VEC3(world0.X, world0.Y, world0.Z),
+                           worldNormal, LightBuffer);
+    const uint32_t c1 =
+        computeVertexColor(baseColor, MAKE_VEC3(world1.X, world1.Y, world1.Z),
+                           worldNormal, LightBuffer);
+    const uint32_t c2 =
+        computeVertexColor(baseColor, MAKE_VEC3(world2.X, world2.Y, world2.Z),
+                           worldNormal, LightBuffer);
+
+    const struct Vec4 clip0 =
+        mat4MulVec4(MvpMatrix, MAKE_VEC4(Model->Vertices[index0].X,
+                                         Model->Vertices[index0].Y,
+                                         Model->Vertices[index0].Z, 1.0f));
+    const struct Vec4 clip1 =
+        mat4MulVec4(MvpMatrix, MAKE_VEC4(Model->Vertices[index1].X,
+                                         Model->Vertices[index1].Y,
+                                         Model->Vertices[index1].Z, 1.0f));
+    const struct Vec4 clip2 =
+        mat4MulVec4(MvpMatrix, MAKE_VEC4(Model->Vertices[index2].X,
+                                         Model->Vertices[index2].Y,
+                                         Model->Vertices[index2].Z, 1.0f));
 
     const struct Vec3 ndc0 =
         MAKE_VEC3(clip0.X / clip0.W, clip0.Y / clip0.W, clip0.Z / clip0.W);
@@ -242,7 +346,7 @@ void drawModel(const struct Framebuffer* Framebuffer, const struct Model* Model,
     const struct Vec3 ndc2 =
         MAKE_VEC3(clip2.X / clip2.W, clip2.Y / clip2.W, clip2.Z / clip2.W);
 
-    drawTriangle(Framebuffer, ndc0, ndc1, ndc2, Model->Colors[i / 3]);
+    drawTriangle(Framebuffer, ndc0, ndc1, ndc2, c0, c1, c2);
   }
 }
 

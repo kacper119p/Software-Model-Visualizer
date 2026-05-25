@@ -24,6 +24,7 @@
 #define SOFTWARE_MODEL_VISUALIZER_RENDERING_H
 #include "appWindow.h"
 #include "graphicsMath.h"
+#include "lights/lightBuffer.h"
 #include "model.h"
 
 void clearColorBuffer(const struct Framebuffer* Framebuffer,
@@ -34,9 +35,11 @@ void drawPixel(const struct Framebuffer* Framebuffer, uint32_t X, uint32_t Y,
 void drawLine(const struct Framebuffer* Framebuffer, struct Vec3 V0,
               struct Vec3 V1, uint32_t Color);
 void drawTriangle(const struct Framebuffer* Framebuffer, struct Vec3 V0,
-                  struct Vec3 V1, struct Vec3 V2, uint32_t Color);
+                  struct Vec3 V1, struct Vec3 V2, uint32_t C0, uint32_t C1,
+                  uint32_t C2);
 void drawModel(const struct Framebuffer* Framebuffer, const struct Model* Model,
-               struct Mat4 Transform);
+               struct Mat4 ModelMatrix, struct Mat4 MvpMatrix,
+               const struct LightBuffer* LightBuffer);
 void drawModelMesh(const struct Framebuffer* Framebuffer,
                    const struct Model* Model, struct Mat4 Transform,
                    uint32_t Color);

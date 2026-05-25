@@ -20,119 +20,115 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#include "model.h"
-
 #include <time.h>
 
 #include "appWindow.h"
+#include "model.h"
 #include "rendering.h"
 #include "timeQuery.h"
 
-#include <stdio.h>
 #include <stdlib.h>
 
-static inline void printUsage(const char* ProgramName) {
-  fprintf(stderr,
-          "Error: Invalid number of arguments.\n"
-          "Usage: %s <file_path>\n",
-          (ProgramName != nullptr) ? ProgramName : "rasterizer");
+static constexpr float cameraDistance = 8.0f;
+static constexpr float cameraHeight = 4.0f;
+static constexpr float cameraOrbitSpeed = 0.3f;
+
+static void setupLights(struct LightBuffer* const Lights) {
+  const struct DirectionalLight dir = {.direction = {-1.0f, 0.0f, 0.0f},
+                                       .color = {0.7f, 0.7f, 0.7f}};
+  lightBufferAddDirectional(Lights, &dir);
+
+  const struct PointLight pointTorus = {.Position = {0.0f, 0.0f, -3.0f},
+                                        .Color = {1.0f, 0.1f, 0.1f},
+                                        .Range = 2.5f,
+                                        .LinearFalloff = 0.5f,
+                                        .QuadraticFalloff = 0.5f};
+  lightBufferAddPoint(Lights, &pointTorus);
+
+  const struct PointLight pointKnot = {.Position = {0.0f, 0.0f, 3.0f},
+                                       .Color = {0.1f, 1.0f, 0.1f},
+                                       .Range = 2.5f,
+                                       .LinearFalloff = 0.5f,
+                                       .QuadraticFalloff = 0.5f};
+  lightBufferAddPoint(Lights, &pointKnot);
+
+  const struct Spotlight spotCone = {.Position = {3.0f, 3.5f, 0.0f},
+                                     .Direction = {0.0f, -1.0f, 0.0f},
+                                     .Color = {1.0f, 1.0f, 0.0f},
+                                     .Range = 4.0f,
+                                     .LinearFalloff = 0.2f,
+                                     .QuadraticFalloff = 0.1f,
+                                     .OuterAngle = 0.18f,
+                                     .InnerAngle = 0.08f};
+  lightBufferAddSpotlight(Lights, &spotCone);
+
+  const struct Spotlight spotSphere = {.Position = {-3.0f, 2.5f, 0.0f},
+                                       .Direction = {0.0f, -1.0f, 0.0f},
+                                       .Color = {0.2f, 0.4f, 1.0f},
+                                       .Range = 5.0f,
+                                       .LinearFalloff = 0.1f,
+                                       .QuadraticFalloff = 0.05f,
+                                       .OuterAngle = 0.35f,
+                                       .InnerAngle = 0.15f};
+  lightBufferAddSpotlight(Lights, &spotSphere);
 }
 
-static inline void printLoadModelError(const char* const FilePath,
-                                       const enum LoadModelResult Result) {
-  switch (Result) {
-  case LOAD_MODEL_RESULT_FILE_NOT_FOUND:
-    fprintf(stderr, "Error: File not found: %s.\n", FilePath);
-    break;
-  case LOAD_MODEL_FAILED_TO_READ_FILE:
-    fprintf(stderr, "Error: Failed to access file content: %s.\n", FilePath);
-    break;
-  case LOAD_MODEL_RESULT_INVALID_FORMAT:
-    fprintf(stderr, "Error: Invalid format in file: %s.\n", FilePath);
-    break;
-  case LOAD_MODEL_RESULT_NOT_TRIANGULATED:
-    fprintf(stderr, "Error: Model is not triangulated.\n");
-    break;
-  case LOAD_MODEL_RESULT_OUT_OF_MEMORY:
-    fprintf(stderr, "Error: Ran of memory while loading model from file: %s.\n",
-            FilePath);
-    break;
-  case LOAD_MODEL_RESULT_NO_GEOMETRY_DATA:
-    fprintf(stderr, "Error: Model contains no vertices.\n");
-    break;
-  default:
-    fprintf(stderr,
-            "Error: Unknown error while trying to load model from: %s.\n",
-            FilePath);
-    break;
+static void drawAt(struct Framebuffer* const Framebuffer,
+                   const struct Model* const Model, const struct Vec3 Position,
+                   const struct Mat4 VpMatrix,
+                   const struct LightBuffer* const Lights) {
+  const struct Mat4 modelMatrix = makeMat4Translation(Position);
+  drawModel(Framebuffer, Model, modelMatrix, mat4Mul(VpMatrix, modelMatrix),
+            Lights);
+}
+
+static void setWhite(struct Model* const Model) {
+  for (size_t i = 0; i < Model->IndexCount / 3; ++i) {
+    Model->Colors[i] = 0xFFFFFF;
   }
 }
 
-static inline bool processArguments(const int Argc, const char* const Argv[],
-                                    struct Model* Model) {
-  if (Argc != 2) {
-    printUsage(Argc > 0 ? Argv[0] : nullptr);
-    return false;
-  }
-  const char* const filePath = Argv[1];
-  const enum LoadModelResult loadModelResult = loadModel(filePath, Model);
-  if (loadModelResult != LOAD_MODEL_RESULT_SUCCESS) {
-    printLoadModelError(Argv[1], loadModelResult);
-    return false;
-  }
-
-  return true;
-}
-
-static inline struct Vec3
-calculateModelCenter(const struct Model* const Model) {
-  struct Vec3 center;
-  center.X = (Model->AabbMin.X + Model->AabbMax.X) * 0.5f;
-  center.Y = (Model->AabbMin.Y + Model->AabbMax.Y) * 0.5f;
-  center.Z = (Model->AabbMin.Z + Model->AabbMax.Z) * 0.5f;
-  return center;
-}
-
-static inline float calculateModelExtent(const struct Model* const Model) {
-  return vec3Dist(Model->AabbMin, Model->AabbMax) / 2.0f;
-}
-
-static inline void renderFrame(struct Framebuffer* const Framebuffer,
-                               const struct Model* const Model,
-                               const float Time, const float Extent,
-                               const struct Vec3 ModelCenter) {
+static void renderFrame(struct Framebuffer* const Framebuffer,
+                        const struct Model* const Sphere,
+                        const struct Model* const Cone,
+                        const struct Model* const Torus,
+                        const struct Model* const TorusKnot, const float Time,
+                        const struct LightBuffer* const Lights) {
   clearColorBuffer(Framebuffer, 0x00000000);
   clearDepthBuffer(Framebuffer, 1.0f);
 
-  constexpr float cameraDistanceMultiplier = 1.2f;
   const float aspect = (float)Framebuffer->Width / (float)Framebuffer->Height;
-  const struct Mat4 projectionMatrix = makePerspectiveProjectionMatrix(
-      70.0f * DegToRad, aspect, 0.1f, Extent * 2.0f * cameraDistanceMultiplier);
-  const struct Vec3 eye =
-      MAKE_VEC3(0.0f, 0.0f, Extent * cameraDistanceMultiplier);
-  const struct Vec3 sceneCenter = MAKE_VEC3(0.0f, 0.0f, 0.0f);
-  const struct Vec3 up = MAKE_VEC3(0.0f, 1.0f, 0.0f);
-  const struct Mat4 viewMatrix = makeMat4LookAt(eye, sceneCenter, up);
+  const struct Mat4 proj =
+      makePerspectiveProjectionMatrix(60.0f * DegToRad, aspect, 0.1f, 30.0f);
+  const float angle = Time * cameraOrbitSpeed;
+  const struct Vec3 eye = MAKE_VEC3(cameraDistance * sinf(angle), cameraHeight,
+                                    cameraDistance * cosf(angle));
+  const struct Mat4 vp = mat4Mul(
+      proj, makeMat4LookAt(eye, VEC3_ZERO, MAKE_VEC3(0.0f, 1.0f, 0.0f)));
 
-  const struct Vec3 translation = vec3Scale(ModelCenter, -1.0f);
-  struct Mat4 modelMatrix = makeMat4Translation(translation);
-  modelMatrix = mulMat4RotationY(modelMatrix, Time);
-
-  const struct Mat4 mvpMatrix =
-      mat4Mul(mat4Mul(projectionMatrix, viewMatrix), modelMatrix);
-
-  drawModel(Framebuffer, Model, mvpMatrix);
+  drawAt(Framebuffer, Sphere, MAKE_VEC3(-3.0f, 0.0f, 0.0f), vp, Lights);
+  drawAt(Framebuffer, Cone, MAKE_VEC3(3.0f, 0.0f, 0.0f), vp, Lights);
+  drawAt(Framebuffer, Torus, MAKE_VEC3(0.0f, 0.0f, -3.0f), vp, Lights);
+  drawAt(Framebuffer, TorusKnot, MAKE_VEC3(0.0f, 0.0f, 3.0f), vp, Lights);
 }
 
-int main(const int argc, const char* const argv[]) {
+int main(void) {
   srand(time(nullptr));
 
-  struct Model model = {0};
-  if (!processArguments(argc, argv, &model)) {
+  struct Model sphere = {0};
+  struct Model cone = {0};
+  struct Model torus = {0};
+  struct Model torusKnot = {0};
+  if (!generateSphereModel(0.8f, 64, 48, &sphere) ||
+      !generateConeModel(0.7f, 1.5f, 24, &cone) ||
+      !generateTorusModel(0.7f, 0.3f, 32, 16, &torus) ||
+      !generateTorusKnotModel(0.6f, 0.2f, 2, 3, 128, 16, &torusKnot)) {
     return EXIT_FAILURE;
   }
-  const struct Vec3 modelCenter = calculateModelCenter(&model);
-  const float extent = calculateModelExtent(&model);
+  setWhite(&sphere);
+  setWhite(&cone);
+  setWhite(&torus);
+  setWhite(&torusKnot);
 
   struct AppWindow window;
   createWindow(&window);
@@ -140,14 +136,23 @@ int main(const int argc, const char* const argv[]) {
   struct TimeQuery timeQuery;
   initializeTimeQuery(&timeQuery);
 
+  struct LightBuffer lightBuffer;
+  lightBufferInit(&lightBuffer);
+  setupLights(&lightBuffer);
+
   while (!window.ShouldClose) {
     const float currentTime = getElapsedTime(&timeQuery);
     peekWindowMessages(&window);
-    renderFrame(&window.Framebuffer, &model, currentTime, extent, modelCenter);
+    renderFrame(&window.Framebuffer, &sphere, &cone, &torus, &torusKnot,
+                currentTime, &lightBuffer);
     presentWindow(&window);
   }
 
-  destroyModel(&model);
+  destroyModel(&sphere);
+  destroyModel(&cone);
+  destroyModel(&torus);
+  destroyModel(&torusKnot);
   destroyWindow(&window);
+  lightBufferDestroy(&lightBuffer);
   return EXIT_SUCCESS;
 }

@@ -425,8 +425,8 @@ bool generateSphereModel(const float Radius, const uint32_t Segments,
     const struct Vec3 v1 = vertices[index1];
     const struct Vec3 v2 = vertices[index2];
 
-    const struct Vec3 edge1 = vec3Sub(v2, v0);
-    const struct Vec3 edge2 = vec3Sub(v1, v0);
+    const struct Vec3 edge1 = vec3Sub(v1, v0);
+    const struct Vec3 edge2 = vec3Sub(v2, v0);
 
     const struct Vec3 normal = vec3Cross(edge1, edge2);
     normals[i / 3] = vec3Normalize(normal);
@@ -481,7 +481,8 @@ bool generateConeModel(const float Radius, const float Height,
 
   for (uint32_t i = 0; i < Segments; ++i) {
     const float theta = (float)i * 2.0f * Pi / (float)Segments;
-    vertices[2 + i] = MAKE_VEC3(Radius * cosf(theta), 0.0f, Radius * sinf(theta));
+    vertices[2 + i] =
+        MAKE_VEC3(Radius * cosf(theta), 0.0f, Radius * sinf(theta));
   }
 
   size_t indexOffset = 0;
@@ -669,12 +670,12 @@ bool generateTorusKnotModel(const float Radius, const float TubeRadius,
     const float qf = (float)Q;
 
     const float r = Radius * (cosf(qf * t) + 2.0f);
-    centers[i] = MAKE_VEC3(r * cosf(pf * t), -Radius * sinf(qf * t),
-                           r * sinf(pf * t));
+    centers[i] =
+        MAKE_VEC3(r * cosf(pf * t), -Radius * sinf(qf * t), r * sinf(pf * t));
 
     const float rp = Radius * (cosf(qf * tp) + 2.0f);
-    const struct Vec3 next = MAKE_VEC3(rp * cosf(pf * tp), -Radius * sinf(qf * tp),
-                                      rp * sinf(pf * tp));
+    const struct Vec3 next = MAKE_VEC3(
+        rp * cosf(pf * tp), -Radius * sinf(qf * tp), rp * sinf(pf * tp));
 
     tangents[i] = vec3Normalize(vec3Sub(next, centers[i]));
   }
@@ -695,13 +696,13 @@ bool generateTorusKnotModel(const float Radius, const float TubeRadius,
       const float cosTheta = cosf(theta);
       const float sinTheta = sinf(theta);
 
-      vertices[i * TubeSegments + j] = MAKE_VEC3(
-          centers[i].X + TubeRadius * (cosTheta * normals2[i].X +
-                                       sinTheta * binormals[i].X),
-          centers[i].Y + TubeRadius * (cosTheta * normals2[i].Y +
-                                       sinTheta * binormals[i].Y),
-          centers[i].Z + TubeRadius * (cosTheta * normals2[i].Z +
-                                       sinTheta * binormals[i].Z));
+      vertices[i * TubeSegments + j] =
+          MAKE_VEC3(centers[i].X + TubeRadius * (cosTheta * normals2[i].X +
+                                                 sinTheta * binormals[i].X),
+                    centers[i].Y + TubeRadius * (cosTheta * normals2[i].Y +
+                                                 sinTheta * binormals[i].Y),
+                    centers[i].Z + TubeRadius * (cosTheta * normals2[i].Z +
+                                                 sinTheta * binormals[i].Z));
     }
   }
 

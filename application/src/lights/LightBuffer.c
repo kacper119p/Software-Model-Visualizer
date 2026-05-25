@@ -20,7 +20,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#include "Lights/LightBuffer.h"
+#include "lights/LightBuffer.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -31,18 +31,18 @@ static uint32_t wordsFor(uint32_t Bytes) {
   return (Bytes + WORD_SIZE - 1) / WORD_SIZE;
 }
 
-static void growData(LightBuffer* Buffer, uint32_t Required) {
+static void growData(struct LightBuffer* Buffer, uint32_t Required) {
   Buffer->DataCapacity = (Buffer->DataSize + Required) * 2;
   Buffer->Data = realloc(Buffer->Data, Buffer->DataCapacity * WORD_SIZE);
 }
 
-static void growOffsets(LightBuffer* Buffer) {
+static void growOffsets(struct LightBuffer* Buffer) {
   Buffer->OffsetCapacity = (Buffer->ObjectCount + 1) * 2;
   Buffer->Offsets =
       realloc(Buffer->Offsets, Buffer->OffsetCapacity * WORD_SIZE);
 }
 
-static void append(LightBuffer* Buffer, const LightType Type, const void* Data,
+static void append(struct LightBuffer* Buffer, const enum LightType Type, const void* Data,
                    const uint32_t DataBytes) {
   const uint32_t dataWords = wordsFor(DataBytes);
   const uint32_t required = 1 + dataWords;
@@ -60,20 +60,20 @@ static void append(LightBuffer* Buffer, const LightType Type, const void* Data,
   Buffer->DataSize += dataWords;
 }
 
-void lightBufferInit(LightBuffer* Buffer) { *Buffer = (LightBuffer){0}; }
+void lightBufferInit(struct LightBuffer* Buffer) { *Buffer = (struct LightBuffer){0}; }
 
-void lightBufferDestroy(LightBuffer* Buffer) {
+void lightBufferDestroy(struct LightBuffer* Buffer) {
   free(Buffer->Data);
   free(Buffer->Offsets);
-  *Buffer = (LightBuffer){0};
+  *Buffer = (struct LightBuffer){0};
 }
 
-void lightBufferClear(LightBuffer* Buffer) {
+void lightBufferClear(struct LightBuffer* Buffer) {
   Buffer->DataSize = 0;
   Buffer->ObjectCount = 0;
 }
 
-void lightBufferRemove(LightBuffer* Buffer, const uint32_t Index) {
+void lightBufferRemove(struct LightBuffer* Buffer, const uint32_t Index) {
   const uint32_t entryStart = Buffer->Offsets[Index];
   const uint32_t entryEnd = (Index + 1 < Buffer->ObjectCount)
                                 ? Buffer->Offsets[Index + 1]
@@ -90,21 +90,21 @@ void lightBufferRemove(LightBuffer* Buffer, const uint32_t Index) {
   --Buffer->ObjectCount;
 }
 
-LightEntry lightBufferGet(const LightBuffer* Buffer, const uint32_t Index) {
+struct LightEntry lightBufferGet(const struct LightBuffer* Buffer, const uint32_t Index) {
   const uint32_t* entry = Buffer->Data + Buffer->Offsets[Index];
-  return (LightEntry){.Type = (LightType)entry[0], .Data = entry + 1};
+  return (struct LightEntry){.Type = (enum  LightType)entry[0], .Data = entry + 1};
 }
 
-void lightBufferAddDirectional(LightBuffer* Buffer,
+void lightBufferAddDirectional(struct LightBuffer* Buffer,
                                const struct DirectionalLight* Light) {
   append(Buffer, LIGHT_TYPE_DIRECTIONAL, Light, sizeof(*Light));
 }
 
-void lightBufferAddPoint(LightBuffer* Buffer, const struct PointLight* Light) {
+void lightBufferAddPoint(struct LightBuffer* Buffer, const struct PointLight* Light) {
   append(Buffer, LIGHT_TYPE_POINT, Light, sizeof(*Light));
 }
 
-void lightBufferAddSpotlight(LightBuffer* Buffer,
+void lightBufferAddSpotlight(struct LightBuffer* Buffer,
                              const struct Spotlight* Light) {
   append(Buffer, LIGHT_TYPE_SPOTLIGHT, Light, sizeof(*Light));
 }

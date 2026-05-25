@@ -22,14 +22,14 @@
 set(SOURCE_FILES
         src/model.c
         src/rendering.c
-        src/LightBuffer.c
+        src/lights/lightBuffer.c
 )
 
 set(HEADER_FILES
-        inc/Lights/DirectionalLight.h
-        inc/Lights/LightBuffer.h
-        inc/Lights/PointLight.h
-        inc/Lights/SpotLight.h
+        inc/lights/directionalLight.h
+        inc/lights/lightBuffer.h
+        inc/lights/pointLight.h
+        inc/lights/spotLight.h
         inc/appWindow.h
         inc/graphicsMath.h
         inc/model.h
