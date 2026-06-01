@@ -35,11 +35,18 @@ void drawPixel(const struct Framebuffer* Framebuffer, uint32_t X, uint32_t Y,
 void drawLine(const struct Framebuffer* Framebuffer, struct Vec3 V0,
               struct Vec3 V1, uint32_t Color);
 void drawTriangle(const struct Framebuffer* Framebuffer, struct Vec3 V0,
-                  struct Vec3 V1, struct Vec3 V2, uint32_t C0, uint32_t C1,
-                  uint32_t C2);
+                  struct Vec3 V1, struct Vec3 V2, float InvW0, float InvW1,
+                  float InvW2, struct Vec3 WorldPos0, struct Vec3 WorldPos1,
+                  struct Vec3 WorldPos2, struct Vec3 WorldNormal0,
+                  struct Vec3 WorldNormal1, struct Vec3 WorldNormal2,
+                  struct Vec3 BaseColor0, struct Vec3 BaseColor1,
+                  struct Vec3 BaseColor2, struct Vec3 Light0, struct Vec3 Light2,
+                  struct Vec3 Light3, const struct LightBuffer* PixelLights);
+
 void drawModel(const struct Framebuffer* Framebuffer, const struct Model* Model,
                struct Mat4 ModelMatrix, struct Mat4 MvpMatrix,
-               const struct LightBuffer* LightBuffer);
+               const struct LightBuffer* VertexLights,
+               const struct LightBuffer* PixelLights);
 void drawModelMesh(const struct Framebuffer* Framebuffer,
                    const struct Model* Model, struct Mat4 Transform,
                    uint32_t Color);

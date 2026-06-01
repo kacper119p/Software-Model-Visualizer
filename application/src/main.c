@@ -33,40 +33,25 @@ static constexpr float cameraDistance = 8.0f;
 static constexpr float cameraHeight = 4.0f;
 static constexpr float cameraOrbitSpeed = 0.3f;
 
-static constexpr size_t knotRingCount = 8;
-static constexpr float knotRingRadius = 9.0f;
-
-static const uint32_t knotRingParams[knotRingCount][2] = {
-    {2, 3}, {3, 4}, {2, 5}, {4, 5}, {2, 13}, {3, 7}, {4, 7}, {5, 6}};
-
-static void setupLights(struct LightBuffer* const Lights) {
+static void setupLights(struct LightBuffer* const VertexLights,
+                        struct LightBuffer* const PixelLights) {
   const struct DirectionalLight dir = {.direction = {-1.0f, 0.0f, 0.0f},
                                        .color = {0.7f, 0.7f, 0.7f}};
-  lightBufferAddDirectional(Lights, &dir);
+  lightBufferAddDirectional(PixelLights, &dir);
 
   const struct PointLight pointTorus = {.Position = {0.0f, 0.0f, -3.0f},
                                         .Color = {1.0f, 0.1f, 0.1f},
                                         .Range = 2.5f,
                                         .LinearFalloff = 0.5f,
                                         .QuadraticFalloff = 0.5f};
-  lightBufferAddPoint(Lights, &pointTorus);
+  lightBufferAddPoint(PixelLights, &pointTorus);
 
   const struct PointLight pointKnot = {.Position = {0.0f, 0.0f, 3.0f},
                                        .Color = {0.1f, 1.0f, 0.1f},
                                        .Range = 2.5f,
                                        .LinearFalloff = 0.5f,
                                        .QuadraticFalloff = 0.5f};
-  lightBufferAddPoint(Lights, &pointKnot);
-
-  const struct Spotlight spotCone = {.Position = {3.0f, 3.5f, 0.0f},
-                                     .Direction = {0.0f, -1.0f, 0.0f},
-                                     .Color = {1.0f, 1.0f, 0.0f},
-                                     .Range = 4.0f,
-                                     .LinearFalloff = 0.2f,
-                                     .QuadraticFalloff = 0.1f,
-                                     .OuterAngle = 0.18f,
-                                     .InnerAngle = 0.08f};
-  lightBufferAddSpotlight(Lights, &spotCone);
+  lightBufferAddPoint(PixelLights, &pointKnot);
 
   const struct Spotlight spotSphere = {.Position = {-3.0f, 2.5f, 0.0f},
                                        .Direction = {0.0f, -1.0f, 0.0f},
@@ -76,16 +61,25 @@ static void setupLights(struct LightBuffer* const Lights) {
                                        .QuadraticFalloff = 0.05f,
                                        .OuterAngle = 0.35f,
                                        .InnerAngle = 0.15f};
-  lightBufferAddSpotlight(Lights, &spotSphere);
+  lightBufferAddSpotlight(PixelLights, &spotSphere);
+
+  const struct Spotlight vertexPointLight = {.Position = {3.0f, 0.0f, 0.0f},
+                                             .Color = {0.1f, 1.0f, 0.1f},
+                                             .Range = 2.5f,
+                                             .LinearFalloff = 0.5f,
+                                             .QuadraticFalloff = 0.5f};
+
+  lightBufferAddSpotlight(VertexLights, &vertexPointLight);
 }
 
 static void drawAt(struct Framebuffer* const Framebuffer,
                    const struct Model* const Model, const struct Vec3 Position,
                    const struct Mat4 VpMatrix,
-                   const struct LightBuffer* const Lights) {
+                   const struct LightBuffer* const VertexLights,
+                   const struct LightBuffer* const PixelLights) {
   const struct Mat4 modelMatrix = makeMat4Translation(Position);
   drawModel(Framebuffer, Model, modelMatrix, mat4Mul(VpMatrix, modelMatrix),
-            Lights);
+            VertexLights, PixelLights);
 }
 
 static void setWhite(struct Model* const Model) {
@@ -96,11 +90,10 @@ static void setWhite(struct Model* const Model) {
 
 static void renderFrame(struct Framebuffer* const Framebuffer,
                         const struct Model* const Sphere,
-                        const struct Model* const Cone,
                         const struct Model* const Torus,
-                        const struct Model* const TorusKnot,
-                        const struct Model* const KnotRing, const float Time,
-                        const struct LightBuffer* const Lights) {
+                        const struct Model* const TorusKnot, const float Time,
+                        const struct LightBuffer* const VertexLights,
+                        const struct LightBuffer* const PixelLights) {
   clearColorBuffer(Framebuffer, 0x00000000);
   clearDepthBuffer(Framebuffer, 1.0f);
 
@@ -113,53 +106,32 @@ static void renderFrame(struct Framebuffer* const Framebuffer,
   const struct Mat4 vp = mat4Mul(
       proj, makeMat4LookAt(eye, VEC3_ZERO, MAKE_VEC3(0.0f, 1.0f, 0.0f)));
 
-  drawAt(Framebuffer, Sphere, MAKE_VEC3(-3.0f, 0.0f, 0.0f), vp, Lights);
-  drawAt(Framebuffer, Sphere, MAKE_VEC3(-3.0f, 2.5f, 0.0f), vp, Lights);
-  drawAt(Framebuffer, Cone, MAKE_VEC3(3.0f, 0.0f, 0.0f), vp, Lights);
-  drawAt(Framebuffer, Torus, MAKE_VEC3(0.0f, 0.0f, -3.0f), vp, Lights);
-  drawAt(Framebuffer, TorusKnot, MAKE_VEC3(0.0f, 0.0f, 3.0f), vp, Lights);
-
-  for (size_t i = 0; i < knotRingCount; ++i) {
-    const float angle = (float)i * (2.0f * Pi / (float)knotRingCount);
-    const struct Vec3 pos = MAKE_VEC3(knotRingRadius * cosf(angle), 0.0f,
-                                      knotRingRadius * sinf(angle));
-    drawAt(Framebuffer, &KnotRing[i], pos, vp, Lights);
-  }
+  drawAt(Framebuffer, Sphere, MAKE_VEC3(-3.0f, 0.0f, 0.0f), vp, VertexLights,
+         PixelLights);
+  drawAt(Framebuffer, Sphere, MAKE_VEC3(-3.0f, 2.5f, 0.0f), vp, VertexLights,
+         PixelLights);
+  drawAt(Framebuffer, Torus, MAKE_VEC3(0.0f, 0.0f, -3.0f), vp, VertexLights,
+         PixelLights);
+  drawAt(Framebuffer, TorusKnot, MAKE_VEC3(0.0f, 0.0f, 3.0f), vp, VertexLights,
+         PixelLights);
+  drawAt(Framebuffer, TorusKnot, MAKE_VEC3(3.0f, 0.0f, 0.0f), vp, VertexLights,
+         PixelLights);
 }
 
 int main(void) {
   srand(time(nullptr));
 
   struct Model sphere = {0};
-  struct Model cone = {0};
   struct Model torus = {0};
   struct Model torusKnot = {0};
-  if (!generateSphereModel(0.8f, 64, 48, &sphere) ||
-      !generateConeModel(0.7f, 1.5f, 24, &cone) ||
-      !generateTorusModel(0.7f, 0.3f, 32, 16, &torus) ||
-      !generateTorusKnotModel(0.6f, 0.2f, 2, 3, 128, 16, &torusKnot)) {
+  if (!generateSphereModel(0.8f, 8, 16, &sphere) ||
+      !generateTorusModel(0.7f, 0.3f, 16, 8, &torus) ||
+      !generateTorusKnotModel(0.6f, 0.2f, 2, 3, 64, 8, &torusKnot)) {
     return EXIT_FAILURE;
   }
   setWhite(&sphere);
-  setWhite(&cone);
   setWhite(&torus);
   setWhite(&torusKnot);
-
-  struct Model knotRing[knotRingCount] = {0};
-  for (size_t i = 0; i < knotRingCount; ++i) {
-    if (!generateTorusKnotModel(0.45f, 0.12f, knotRingParams[i][0],
-                                knotRingParams[i][1], 96, 12, &knotRing[i])) {
-      for (size_t j = 0; j < i; ++j) {
-        destroyModel(&knotRing[j]);
-      }
-      destroyModel(&sphere);
-      destroyModel(&cone);
-      destroyModel(&torus);
-      destroyModel(&torusKnot);
-      return EXIT_FAILURE;
-    }
-    setWhite(&knotRing[i]);
-  }
 
   struct AppWindow window;
   createWindow(&window);
@@ -167,26 +139,25 @@ int main(void) {
   struct TimeQuery timeQuery;
   initializeTimeQuery(&timeQuery);
 
-  struct LightBuffer lightBuffer;
-  lightBufferInit(&lightBuffer);
-  setupLights(&lightBuffer);
+  struct LightBuffer vertexLightsBuffer;
+  lightBufferInit(&vertexLightsBuffer);
+  struct LightBuffer pixelLightsBuffer;
+  lightBufferInit(&pixelLightsBuffer);
+  setupLights(&vertexLightsBuffer, &pixelLightsBuffer);
 
   while (!window.ShouldClose) {
     const float currentTime = getElapsedTime(&timeQuery);
     peekWindowMessages(&window);
-    renderFrame(&window.Framebuffer, &sphere, &cone, &torus, &torusKnot,
-                knotRing, currentTime, &lightBuffer);
+    renderFrame(&window.Framebuffer, &sphere, &torus, &torusKnot,
+                currentTime, &vertexLightsBuffer, &pixelLightsBuffer);
     presentWindow(&window);
   }
 
   destroyModel(&sphere);
-  destroyModel(&cone);
   destroyModel(&torus);
   destroyModel(&torusKnot);
-  for (size_t i = 0; i < knotRingCount; ++i) {
-    destroyModel(&knotRing[i]);
-  }
   destroyWindow(&window);
-  lightBufferDestroy(&lightBuffer);
+  lightBufferDestroy(&pixelLightsBuffer);
+  lightBufferDestroy(&vertexLightsBuffer);
   return EXIT_SUCCESS;
 }

@@ -24,6 +24,14 @@
 
 #include <stdlib.h>
 
+struct ClippedVertex {
+  struct Vec4 Clip;
+  struct Vec3 WorldPos;
+  struct Vec3 WorldNormal;
+  struct Vec3 BaseLinear;
+  struct Vec3 Lit;
+};
+
 static inline float edgeFunction(const struct Vec2 A, const struct Vec2 B,
                                  const struct Vec2 C) {
   return (A.X - B.X) * (C.Y - A.Y) - (A.Y - B.Y) * (C.X - A.X);
@@ -34,6 +42,97 @@ static inline void ndcToScreenNormalized(const struct Vec3 Ndc,
   Normalized->X = (Ndc.X + 1.0f) * 0.5f;
   Normalized->Y = (1.0f - Ndc.Y) * 0.5f;
   Normalized->Z = (Ndc.Z + 1.0f) * 0.5f;
+}
+
+static inline struct Vec3 evaluateLights(const struct LightBuffer* Lights,
+                                         struct Vec3 WorldPos,
+                                         struct Vec3 WorldNormal,
+                                         struct Vec3 BaseLinear);
+
+static inline struct Vec3 colorUintToLinear(const uint32_t Color) {
+  const struct Color c = colorUintToColorStruct(Color);
+  return MAKE_VEC3(c.R / 255.0f, c.G / 255.0f, c.B / 255.0f);
+}
+
+static inline struct ClippedVertex
+lerpClippedVertex(const struct ClippedVertex A, const struct ClippedVertex B,
+                  const float T) {
+  struct ClippedVertex r;
+  r.Clip.X = A.Clip.X + (B.Clip.X - A.Clip.X) * T;
+  r.Clip.Y = A.Clip.Y + (B.Clip.Y - A.Clip.Y) * T;
+  r.Clip.Z = A.Clip.Z + (B.Clip.Z - A.Clip.Z) * T;
+  r.Clip.W = A.Clip.W + (B.Clip.W - A.Clip.W) * T;
+  r.WorldPos = vec3Lerp(A.WorldPos, B.WorldPos, T);
+  r.WorldNormal = vec3Lerp(A.WorldNormal, B.WorldNormal, T);
+  r.BaseLinear = vec3Lerp(A.BaseLinear, B.BaseLinear, T);
+  r.Lit = vec3Lerp(A.Lit, B.Lit, T);
+  return r;
+}
+
+static inline struct Vec3 evaluateLights(const struct LightBuffer* const Lights,
+                                         const struct Vec3 WorldPos,
+                                         const struct Vec3 WorldNormal,
+                                         const struct Vec3 BaseLinear) {
+  struct Vec3 accumulated = VEC3_ZERO;
+  if (Lights == nullptr) {
+    return accumulated;
+  }
+
+  const uint32_t count = lightBufferGetCount(Lights);
+  for (uint32_t i = 0; i < count; ++i) {
+    const struct LightEntry entry = lightBufferGet(Lights, i);
+    struct Vec3 lightContrib = VEC3_ZERO;
+
+    switch (entry.Type) {
+    case LIGHT_TYPE_DIRECTIONAL: {
+      const struct DirectionalLight* l = entry.Data;
+      const float diff =
+          fmaxf(0.0f, vec3Dot(WorldNormal,
+                              vec3Normalize(vec3Scale(l->direction, -1.0f))));
+      lightContrib = vec3Scale(l->color, diff);
+      break;
+    }
+    case LIGHT_TYPE_POINT: {
+      const struct PointLight* l = entry.Data;
+      const struct Vec3 toLight = vec3Sub(l->Position, WorldPos);
+      const float dist = vec3Len(toLight);
+      if (dist < l->Range) {
+        const float diff =
+            fmaxf(0.0f, vec3Dot(WorldNormal, vec3Div(toLight, dist)));
+        const float attenuation = 1.0f / (1.0f + l->LinearFalloff * dist +
+                                          l->QuadraticFalloff * dist * dist);
+        lightContrib = vec3Scale(l->Color, diff * attenuation);
+      }
+      break;
+    }
+    case LIGHT_TYPE_SPOTLIGHT: {
+      const struct Spotlight* l = entry.Data;
+      const struct Vec3 toLight = vec3Sub(l->Position, WorldPos);
+      const float dist = vec3Len(toLight);
+      if (dist < l->Range) {
+        const struct Vec3 toLightDir = vec3Div(toLight, dist);
+        const float diff = fmaxf(0.0f, vec3Dot(WorldNormal, toLightDir));
+        const float cosAngle =
+            vec3Dot(toLightDir, vec3Normalize(vec3Scale(l->Direction, -1.0f)));
+        const float cosOuter = cosf(l->OuterAngle);
+        const float cosInner = cosf(l->InnerAngle);
+        const float spot = fmaxf(
+            0.0f, fminf(1.0f, (cosAngle - cosOuter) / (cosInner - cosOuter)));
+        const float attenuation = spot / (1.0f + l->LinearFalloff * dist +
+                                          l->QuadraticFalloff * dist * dist);
+        lightContrib = vec3Scale(l->Color, diff * attenuation);
+      }
+      break;
+    }
+    }
+
+    accumulated =
+        vec3Add(accumulated, MAKE_VEC3(lightContrib.X * BaseLinear.X,
+                                       lightContrib.Y * BaseLinear.Y,
+                                       lightContrib.Z * BaseLinear.Z));
+  }
+
+  return accumulated;
 }
 
 void clearColorBuffer(const struct Framebuffer* const Framebuffer,
@@ -119,8 +218,16 @@ void drawLine(const struct Framebuffer* const Framebuffer, const struct Vec3 V0,
 }
 
 void drawTriangle(const struct Framebuffer* Framebuffer, const struct Vec3 V0,
-                  const struct Vec3 V1, const struct Vec3 V2, const uint32_t C0,
-                  const uint32_t C1, const uint32_t C2) {
+                  const struct Vec3 V1, const struct Vec3 V2, const float InvW0,
+                  const float InvW1, const float InvW2,
+                  const struct Vec3 WorldPos0, const struct Vec3 WorldPos1,
+                  const struct Vec3 WorldPos2, const struct Vec3 WorldNormal0,
+                  const struct Vec3 WorldNormal1,
+                  const struct Vec3 WorldNormal2, const struct Vec3 BaseColor0,
+                  const struct Vec3 BaseColor1, const struct Vec3 BaseColor2,
+                  const struct Vec3 Light0, const struct Vec3 Light2,
+                  const struct Vec3 Light3,
+                  const struct LightBuffer* PixelLights) {
   struct Vec3 norm0;
   struct Vec3 norm1;
   struct Vec3 norm2;
@@ -162,12 +269,6 @@ void drawTriangle(const struct Framebuffer* Framebuffer, const struct Vec3 V0,
   const float stepXW2 = pixelV1.Y - pixelV0.Y;
   const float stepYW2 = pixelV0.X - pixelV1.X;
 
-  const struct Vec2 initialPixel =
-      MAKE_VEC2((float)minX + 0.5f, (float)minY + 0.5f);
-  float w0Row = edgeFunction(pixelV1, pixelV2, initialPixel);
-  float w1Row = edgeFunction(pixelV2, pixelV0, initialPixel);
-  float w2Row = edgeFunction(pixelV0, pixelV1, initialPixel);
-
   const bool isTopLeft0 =
       (stepXW0 > 0.0f) || (stepXW0 == 0.0f && stepYW0 < 0.0f);
   const bool isTopLeft1 =
@@ -175,14 +276,35 @@ void drawTriangle(const struct Framebuffer* Framebuffer, const struct Vec3 V0,
   const bool isTopLeft2 =
       (stepXW2 > 0.0f) || (stepXW2 == 0.0f && stepYW2 < 0.0f);
 
-  size_t rowStartIndex = minY * Framebuffer->Width;
+  const bool hasPixelLights =
+      PixelLights != nullptr && !lightBufferIsEmpty(PixelLights);
+
+  const struct Vec3 worldPosition0 = vec3Scale(WorldPos0, InvW0);
+  const struct Vec3 worldPosition1 = vec3Scale(WorldPos1, InvW1);
+  const struct Vec3 worldPosition2 = vec3Scale(WorldPos2, InvW2);
+  const struct Vec3 worldNormal0 =
+      vec3Normalize(vec3Scale(WorldNormal0, InvW0));
+  const struct Vec3 worldNormal2 =
+      vec3Normalize(vec3Scale(WorldNormal1, InvW1));
+  const struct Vec3 worldNormal3 =
+      vec3Normalize(vec3Scale(WorldNormal2, InvW2));
+  const struct Vec3 baseColor0 = vec3Scale(BaseColor0, InvW0);
+  const struct Vec3 baseColor1 = vec3Scale(BaseColor1, InvW1);
+  const struct Vec3 baseColor2 = vec3Scale(BaseColor2, InvW2);
+  const struct Vec3 light0 = vec3Scale(Light0, InvW0);
+  const struct Vec3 light1 = vec3Scale(Light2, InvW1);
+  const struct Vec3 light2 = vec3Scale(Light3, InvW2);
+
+  size_t rowStartIndex = (size_t)minY * Framebuffer->Width;
 
   for (int32_t y = minY; y < maxY; ++y) {
-    float w0 = w0Row;
-    float w1 = w1Row;
-    float w2 = w2Row;
-
+    const float pixelCenterY = (float)y + 0.5f;
     for (int32_t x = minX; x < maxX; ++x) {
+      const struct Vec2 pixelCenter = MAKE_VEC2((float)x + 0.5f, pixelCenterY);
+      const float w0 = edgeFunction(pixelV1, pixelV2, pixelCenter);
+      const float w1 = edgeFunction(pixelV2, pixelV0, pixelCenter);
+      const float w2 = edgeFunction(pixelV0, pixelV1, pixelCenter);
+
       const bool pass0 = (w0 > 0.0f) || (w0 == 0.0f && isTopLeft0);
       const bool pass1 = (w1 > 0.0f) || (w1 == 0.0f && isTopLeft1);
       const bool pass2 = (w2 > 0.0f) || (w2 == 0.0f && isTopLeft2);
@@ -193,117 +315,64 @@ void drawTriangle(const struct Framebuffer* Framebuffer, const struct Vec3 V0,
         const float b2 = w2 * areaInv;
 
         const float depth = b0 * norm0.Z + b1 * norm1.Z + b2 * norm2.Z;
-        const size_t pixelIndex = rowStartIndex + x;
+        const size_t pixelIndex = rowStartIndex + (size_t)x;
 
         const bool notCulled = depth < Framebuffer->DepthBuffer[pixelIndex] &&
                                depth >= -1.0f && depth <= 1.0f;
 
         if (notCulled) {
+          const float invWInterp = b0 * InvW0 + b1 * InvW1 + b2 * InvW2;
+          const float wInterp = 1.0f / invWInterp;
+
+          const struct Vec3 lit = vec3Scale(
+              MAKE_VEC3(b0 * light0.X + b1 * light1.X + b2 * light2.X,
+                        b0 * light0.Y + b1 * light1.Y + b2 * light2.Y,
+                        b0 * light0.Z + b1 * light1.Z + b2 * light2.Z),
+              wInterp);
+
+          struct Vec3 final = lit;
+
+          if (hasPixelLights) {
+            const struct Vec3 worldPos = vec3Scale(
+                MAKE_VEC3(b0 * worldPosition0.X + b1 * worldPosition1.X +
+                              b2 * worldPosition2.X,
+                          b0 * worldPosition0.Y + b1 * worldPosition1.Y +
+                              b2 * worldPosition2.Y,
+                          b0 * worldPosition0.Z + b1 * worldPosition1.Z +
+                              b2 * worldPosition2.Z),
+                wInterp);
+            const struct Vec3 worldNormal = vec3Normalize(
+                vec3Scale(MAKE_VEC3(b0 * worldNormal0.X + b1 * worldNormal2.X +
+                                        b2 * worldNormal3.X,
+                                    b0 * worldNormal0.Y + b1 * worldNormal2.Y +
+                                        b2 * worldNormal3.Y,
+                                    b0 * worldNormal0.Z + b1 * worldNormal2.Z +
+                                        b2 * worldNormal3.Z),
+                          wInterp));
+            const struct Vec3 baseLinear = vec3Scale(
+                MAKE_VEC3(
+                    b0 * baseColor0.X + b1 * baseColor1.X + b2 * baseColor2.X,
+                    b0 * baseColor0.Y + b1 * baseColor1.Y + b2 * baseColor2.Y,
+                    b0 * baseColor0.Z + b1 * baseColor1.Z + b2 * baseColor2.Z),
+                wInterp);
+
+            final = vec3Add(final, evaluateLights(PixelLights, worldPos,
+                                                  worldNormal, baseLinear));
+          }
+
           Framebuffer->DepthBuffer[pixelIndex] = depth;
-          const struct Color ca = colorUintToColorStruct(C0);
-          const struct Color cb = colorUintToColorStruct(C1);
-          const struct Color cc = colorUintToColorStruct(C2);
-          Framebuffer->ColorBuffer[pixelIndex] = colorStructToColorUint(
-              (struct Color){(uint8_t)(ca.R * b0 + cb.R * b1 + cc.R * b2),
-                             (uint8_t)(ca.G * b0 + cb.G * b1 + cc.G * b2),
-                             (uint8_t)(ca.B * b0 + cb.B * b1 + cc.B * b2)});
+          const struct Color outColor = {
+              (uint8_t)(fminf(final.X, 1.0f) * 255.0f),
+              (uint8_t)(fminf(final.Y, 1.0f) * 255.0f),
+              (uint8_t)(fminf(final.Z, 1.0f) * 255.0f)};
+          Framebuffer->ColorBuffer[pixelIndex] =
+              colorStructToColorUint(outColor);
         }
       }
-      w0 += stepXW0;
-      w1 += stepXW1;
-      w2 += stepXW2;
     }
 
-    w0Row += stepYW0;
-    w1Row += stepYW1;
-    w2Row += stepYW2;
     rowStartIndex += Framebuffer->Width;
   }
-}
-
-static inline uint32_t
-computeVertexColor(const uint32_t BaseColor, const struct Vec3 WorldPos,
-                   const struct Vec3 WorldNormal,
-                   const struct LightBuffer* const Lights) {
-  const struct Color base = colorUintToColorStruct(BaseColor);
-  const struct Vec3 baseLinear =
-      MAKE_VEC3(base.R / 255.0f, base.G / 255.0f, base.B / 255.0f);
-  struct Vec3 accumulated = VEC3_ZERO;
-
-  for (uint32_t i = 0; i < lightBufferGetCount(Lights); ++i) {
-    const struct LightEntry entry = lightBufferGet(Lights, i);
-    struct Vec3 lightContrib = VEC3_ZERO;
-
-    switch (entry.Type) {
-    case LIGHT_TYPE_DIRECTIONAL: {
-      const struct DirectionalLight* l = entry.Data;
-      const float diff =
-          fmaxf(0.0f, vec3Dot(WorldNormal,
-                              vec3Normalize(vec3Scale(l->direction, -1.0f))));
-      lightContrib = vec3Scale(l->color, diff);
-      break;
-    }
-    case LIGHT_TYPE_POINT: {
-      const struct PointLight* l = entry.Data;
-      const struct Vec3 toLight = vec3Sub(l->Position, WorldPos);
-      const float dist = vec3Len(toLight);
-      if (dist < l->Range) {
-        const float diff =
-            fmaxf(0.0f, vec3Dot(WorldNormal, vec3Div(toLight, dist)));
-        const float attenuation = 1.0f / (1.0f + l->LinearFalloff * dist +
-                                          l->QuadraticFalloff * dist * dist);
-        lightContrib = vec3Scale(l->Color, diff * attenuation);
-      }
-      break;
-    }
-    case LIGHT_TYPE_SPOTLIGHT: {
-      const struct Spotlight* l = entry.Data;
-      const struct Vec3 toLight = vec3Sub(l->Position, WorldPos);
-      const float dist = vec3Len(toLight);
-      if (dist < l->Range) {
-        const struct Vec3 toLightDir = vec3Div(toLight, dist);
-        const float diff = fmaxf(0.0f, vec3Dot(WorldNormal, toLightDir));
-        const float cosAngle =
-            vec3Dot(toLightDir, vec3Normalize(vec3Scale(l->Direction, -1.0f)));
-        const float cosOuter = cosf(l->OuterAngle);
-        const float cosInner = cosf(l->InnerAngle);
-        const float spot = fmaxf(
-            0.0f, fminf(1.0f, (cosAngle - cosOuter) / (cosInner - cosOuter)));
-        const float attenuation = spot / (1.0f + l->LinearFalloff * dist +
-                                          l->QuadraticFalloff * dist * dist);
-        lightContrib = vec3Scale(l->Color, diff * attenuation);
-      }
-      break;
-    }
-    }
-
-    accumulated =
-        vec3Add(accumulated, MAKE_VEC3(lightContrib.X * baseLinear.X,
-                                       lightContrib.Y * baseLinear.Y,
-                                       lightContrib.Z * baseLinear.Z));
-  }
-
-  const struct Color result = {(uint8_t)(fminf(accumulated.X, 1.0f) * 255.0f),
-                               (uint8_t)(fminf(accumulated.Y, 1.0f) * 255.0f),
-                               (uint8_t)(fminf(accumulated.Z, 1.0f) * 255.0f)};
-  return colorStructToColorUint(result);
-}
-
-struct ClippedVertex {
-  struct Vec4 Clip;
-  uint32_t Color;
-};
-
-static inline struct ClippedVertex
-lerpClippedVertex(const struct ClippedVertex A, const struct ClippedVertex B,
-                  const float T) {
-  struct ClippedVertex r;
-  r.Clip.X = A.Clip.X + (B.Clip.X - A.Clip.X) * T;
-  r.Clip.Y = A.Clip.Y + (B.Clip.Y - A.Clip.Y) * T;
-  r.Clip.Z = A.Clip.Z + (B.Clip.Z - A.Clip.Z) * T;
-  r.Clip.W = A.Clip.W + (B.Clip.W - A.Clip.W) * T;
-  r.Color = lerpColor(A.Color, B.Color, T);
-  return r;
 }
 
 static int32_t clipTriangleNearPlane(const struct ClippedVertex In[3],
@@ -332,7 +401,8 @@ static int32_t clipTriangleNearPlane(const struct ClippedVertex In[3],
 
 void drawModel(const struct Framebuffer* Framebuffer, const struct Model* Model,
                const struct Mat4 ModelMatrix, const struct Mat4 MvpMatrix,
-               const struct LightBuffer* const LightBuffer) {
+               const struct LightBuffer* const VertexLights,
+               const struct LightBuffer* const PixelLights) {
   for (size_t i = 0; i < Model->IndexCount; i += 3) {
     const uint32_t index0 = Model->Indices[i];
     const uint32_t index1 = Model->Indices[i + 1];
@@ -351,35 +421,37 @@ void drawModel(const struct Framebuffer* Framebuffer, const struct Model* Model,
                                            Model->Vertices[index2].Y,
                                            Model->Vertices[index2].Z, 1.0f));
 
-    const struct Vec4 worldNormal0 =
+    const struct Vec4 worldNormal0Raw =
         mat4MulVec4(ModelMatrix, MAKE_VEC4(Model->Normals[index0].X,
                                            Model->Normals[index0].Y,
                                            Model->Normals[index0].Z, 0.0f));
-    const struct Vec4 worldNormal1 =
+    const struct Vec4 worldNormal1Raw =
         mat4MulVec4(ModelMatrix, MAKE_VEC4(Model->Normals[index1].X,
                                            Model->Normals[index1].Y,
                                            Model->Normals[index1].Z, 0.0f));
-    const struct Vec4 wordlNormal2 =
+    const struct Vec4 worldNormal2Raw =
         mat4MulVec4(ModelMatrix, MAKE_VEC4(Model->Normals[index2].X,
                                            Model->Normals[index2].Y,
                                            Model->Normals[index2].Z, 0.0f));
 
-    const uint32_t baseColor = Model->Colors[i / 3];
-    const uint32_t color0 =
-        computeVertexColor(baseColor, MAKE_VEC3(world0.X, world0.Y, world0.Z),
-                           vec3Normalize(MAKE_VEC3(
-                               worldNormal0.X, worldNormal0.Y, worldNormal0.Z)),
-                           LightBuffer);
-    const uint32_t color1 =
-        computeVertexColor(baseColor, MAKE_VEC3(world1.X, world1.Y, world1.Z),
-                           vec3Normalize(MAKE_VEC3(
-                               worldNormal1.X, worldNormal1.Y, worldNormal1.Z)),
-                           LightBuffer);
-    const uint32_t color2 =
-        computeVertexColor(baseColor, MAKE_VEC3(world2.X, world2.Y, world2.Z),
-                           vec3Normalize(MAKE_VEC3(
-                               wordlNormal2.X, wordlNormal2.Y, wordlNormal2.Z)),
-                           LightBuffer);
+    const struct Vec3 worldPos0 = MAKE_VEC3(world0.X, world0.Y, world0.Z);
+    const struct Vec3 worldPos1 = MAKE_VEC3(world1.X, world1.Y, world1.Z);
+    const struct Vec3 worldPos2 = MAKE_VEC3(world2.X, world2.Y, world2.Z);
+    const struct Vec3 worldNormal0 = vec3Normalize(
+        MAKE_VEC3(worldNormal0Raw.X, worldNormal0Raw.Y, worldNormal0Raw.Z));
+    const struct Vec3 worldNormal1 = vec3Normalize(
+        MAKE_VEC3(worldNormal1Raw.X, worldNormal1Raw.Y, worldNormal1Raw.Z));
+    const struct Vec3 worldNormal2 = vec3Normalize(
+        MAKE_VEC3(worldNormal2Raw.X, worldNormal2Raw.Y, worldNormal2Raw.Z));
+
+    const struct Vec3 baseLinear = colorUintToLinear(Model->Colors[i / 3]);
+
+    const struct Vec3 light0 =
+        evaluateLights(VertexLights, worldPos0, worldNormal0, baseLinear);
+    const struct Vec3 light1 =
+        evaluateLights(VertexLights, worldPos1, worldNormal1, baseLinear);
+    const struct Vec3 light2 =
+        evaluateLights(VertexLights, worldPos2, worldNormal2, baseLinear);
 
     const struct Vec4 clip0 =
         mat4MulVec4(MvpMatrix, MAKE_VEC4(Model->Vertices[index0].X,
@@ -395,7 +467,9 @@ void drawModel(const struct Framebuffer* Framebuffer, const struct Model* Model,
                                          Model->Vertices[index2].Z, 1.0f));
 
     const struct ClippedVertex in[3] = {
-        {clip0, color0}, {clip1, color1}, {clip2, color2}};
+        {clip0, worldPos0, worldNormal0, baseLinear, light0},
+        {clip1, worldPos1, worldNormal1, baseLinear, light1},
+        {clip2, worldPos2, worldNormal2, baseLinear, light2}};
     struct ClippedVertex out[4];
     const int outCount = clipTriangleNearPlane(in, out);
     if (outCount < 3) {
@@ -403,15 +477,20 @@ void drawModel(const struct Framebuffer* Framebuffer, const struct Model* Model,
     }
 
     struct Vec3 ndc[4];
+    float invW[4];
     for (int k = 0; k < outCount; ++k) {
-      const float invW = 1.0f / out[k].Clip.W;
-      ndc[k] = MAKE_VEC3(out[k].Clip.X * invW, out[k].Clip.Y * invW,
-                         out[k].Clip.Z * invW);
+      invW[k] = 1.0f / out[k].Clip.W;
+      ndc[k] = MAKE_VEC3(out[k].Clip.X * invW[k], out[k].Clip.Y * invW[k],
+                         out[k].Clip.Z * invW[k]);
     }
 
     for (int k = 1; k <= outCount - 2; ++k) {
-      drawTriangle(Framebuffer, ndc[0], ndc[k], ndc[k + 1], out[0].Color,
-                   out[k].Color, out[k + 1].Color);
+      drawTriangle(Framebuffer, ndc[0], ndc[k], ndc[k + 1], invW[0], invW[k],
+                   invW[k + 1], out[0].WorldPos, out[k].WorldPos,
+                   out[k + 1].WorldPos, out[0].WorldNormal, out[k].WorldNormal,
+                   out[k + 1].WorldNormal, out[0].BaseLinear, out[k].BaseLinear,
+                   out[k + 1].BaseLinear, out[0].Lit, out[k].Lit,
+                   out[k + 1].Lit, PixelLights);
     }
   }
 }
