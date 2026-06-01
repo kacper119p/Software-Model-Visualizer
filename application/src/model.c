@@ -127,6 +127,26 @@ static inline uint32_t getRandomColor() {
   return hsvToRgb(hue, 1.0f, 1.0f);
 }
 
+static void calculateNormals(const struct Vec3* const Vertices,
+                             const uint32_t* const Indices,
+                             const size_t IndexCount,
+                             struct Vec3* const Normals) {
+  for (size_t i = 0; i < IndexCount; i += 3) {
+    const uint32_t i0 = Indices[i], i1 = Indices[i + 1], i2 = Indices[i + 2];
+    const struct Vec3 edge1 = vec3Sub(Vertices[i1], Vertices[i0]);
+    const struct Vec3 edge2 = vec3Sub(Vertices[i2], Vertices[i0]);
+    const struct Vec3 faceNormal = vec3Cross(edge1, edge2);
+    Normals[i0] = vec3Add(Normals[i0], faceNormal);
+    Normals[i1] = vec3Add(Normals[i1], faceNormal);
+    Normals[i2] = vec3Add(Normals[i2], faceNormal);
+  }
+  for (size_t i = 0; i < IndexCount; ++i) {
+    const uint32_t idx = Indices[i];
+    const float len = vec3Len(Normals[idx]);
+    Normals[idx] = vec3Div(Normals[idx], len);
+  }
+}
+
 static inline void calculateAabb(const struct Vec3* const Vertices,
                                  const size_t VertexCount, struct Vec3* Min,
                                  struct Vec3* Max) {
@@ -221,7 +241,7 @@ enum LoadModelResult loadModel(const char* const FilePath,
   uint32_t* const restrict indices =
       calloc(Destination->IndexCount, sizeof(uint32_t));
   struct Vec3* const restrict normals =
-      calloc(Destination->IndexCount / 3, sizeof(struct Vec3));
+      calloc(Destination->VertexCount, sizeof(struct Vec3));
   uint32_t* const restrict colors =
       calloc(Destination->IndexCount / 3, sizeof(uint32_t));
   struct Vec2* const restrict textureCoords =
@@ -317,21 +337,7 @@ enum LoadModelResult loadModel(const char* const FilePath,
     }
   }
 
-  for (size_t i = 0; i < Destination->IndexCount; i += 3) {
-    const uint32_t index0 = indices[i];
-    const uint32_t index1 = indices[i + 1];
-    const uint32_t index2 = indices[i + 2];
-
-    const struct Vec3 v0 = vertices[index0];
-    const struct Vec3 v1 = vertices[index1];
-    const struct Vec3 v2 = vertices[index2];
-
-    const struct Vec3 edge1 = vec3Sub(v1, v0);
-    const struct Vec3 edge2 = vec3Sub(v2, v0);
-
-    struct Vec3 normal = vec3Cross(edge1, edge2);
-    normals[i / 3] = vec3Normalize(normal);
-  }
+  calculateNormals(vertices, indices, Destination->IndexCount, normals);
 
   for (size_t i = 0; i < Destination->IndexCount / 3; ++i) {
     colors[i] = getRandomColor();
@@ -366,7 +372,7 @@ bool generateSphereModel(const float Radius, const uint32_t Segments,
   uint32_t* const restrict indices =
       calloc(Destination->IndexCount, sizeof(uint32_t));
   struct Vec3* const restrict normals =
-      calloc(Destination->IndexCount / 3, sizeof(struct Vec3));
+      calloc(Destination->VertexCount, sizeof(struct Vec3));
   uint32_t* const restrict colors =
       calloc(Destination->IndexCount / 3, sizeof(uint32_t));
 
@@ -390,9 +396,8 @@ bool generateSphereModel(const float Radius, const uint32_t Segments,
       const float x = Radius * sinPhi * cosf(theta);
       const float z = Radius * sinPhi * sinf(theta);
 
-      vertices[vertexIndex].X = x;
-      vertices[vertexIndex].Y = y;
-      vertices[vertexIndex].Z = z;
+      vertices[vertexIndex] = MAKE_VEC3(x, y, z);
+      normals[vertexIndex] = MAKE_VEC3(x / Radius, y / Radius, z / Radius);
       vertexIndex++;
     }
   }
@@ -414,22 +419,6 @@ bool generateSphereModel(const float Radius, const uint32_t Segments,
         indices[indexOffset++] = k2;
       }
     }
-  }
-
-  for (size_t i = 0; i < Destination->IndexCount; i += 3) {
-    const uint32_t index0 = indices[i];
-    const uint32_t index1 = indices[i + 1];
-    const uint32_t index2 = indices[i + 2];
-
-    const struct Vec3 v0 = vertices[index0];
-    const struct Vec3 v1 = vertices[index1];
-    const struct Vec3 v2 = vertices[index2];
-
-    const struct Vec3 edge1 = vec3Sub(v1, v0);
-    const struct Vec3 edge2 = vec3Sub(v2, v0);
-
-    const struct Vec3 normal = vec3Cross(edge1, edge2);
-    normals[i / 3] = vec3Normalize(normal);
   }
 
   for (size_t i = 0; i < Destination->IndexCount / 3; ++i) {
@@ -463,7 +452,7 @@ bool generateConeModel(const float Radius, const float Height,
   uint32_t* const restrict indices =
       calloc(Destination->IndexCount, sizeof(uint32_t));
   struct Vec3* const restrict normals =
-      calloc(Destination->IndexCount / 3, sizeof(struct Vec3));
+      calloc(Destination->VertexCount, sizeof(struct Vec3));
   uint32_t* const restrict colors =
       calloc(Destination->IndexCount / 3, sizeof(uint32_t));
 
@@ -498,14 +487,7 @@ bool generateConeModel(const float Radius, const float Height,
     indices[indexOffset++] = next;
   }
 
-  for (size_t i = 0; i < Destination->IndexCount; i += 3) {
-    const struct Vec3 v0 = vertices[indices[i]];
-    const struct Vec3 v1 = vertices[indices[i + 1]];
-    const struct Vec3 v2 = vertices[indices[i + 2]];
-    const struct Vec3 edge1 = vec3Sub(v1, v0);
-    const struct Vec3 edge2 = vec3Sub(v2, v0);
-    normals[i / 3] = vec3Normalize(vec3Cross(edge1, edge2));
-  }
+  calculateNormals(vertices, indices, Destination->IndexCount, normals);
 
   for (size_t i = 0; i < Destination->IndexCount / 3; ++i) {
     colors[i] = getRandomColor();
@@ -541,7 +523,7 @@ bool generateTorusModel(const float MajorRadius, const float MinorRadius,
   uint32_t* const restrict indices =
       calloc(Destination->IndexCount, sizeof(uint32_t));
   struct Vec3* const restrict normals =
-      calloc(Destination->IndexCount / 3, sizeof(struct Vec3));
+      calloc(Destination->VertexCount, sizeof(struct Vec3));
   uint32_t* const restrict colors =
       calloc(Destination->IndexCount / 3, sizeof(uint32_t));
 
@@ -587,14 +569,7 @@ bool generateTorusModel(const float MajorRadius, const float MinorRadius,
     }
   }
 
-  for (size_t i = 0; i < Destination->IndexCount; i += 3) {
-    const struct Vec3 v0 = vertices[indices[i]];
-    const struct Vec3 v1 = vertices[indices[i + 1]];
-    const struct Vec3 v2 = vertices[indices[i + 2]];
-    const struct Vec3 edge1 = vec3Sub(v1, v0);
-    const struct Vec3 edge2 = vec3Sub(v2, v0);
-    normals[i / 3] = vec3Normalize(vec3Cross(edge1, edge2));
-  }
+  calculateNormals(vertices, indices, Destination->IndexCount, normals);
 
   for (size_t i = 0; i < Destination->IndexCount / 3; ++i) {
     colors[i] = getRandomColor();
@@ -631,7 +606,7 @@ bool generateTorusKnotModel(const float Radius, const float TubeRadius,
   uint32_t* const restrict indices =
       calloc(Destination->IndexCount, sizeof(uint32_t));
   struct Vec3* const restrict normals =
-      calloc(Destination->IndexCount / 3, sizeof(struct Vec3));
+      calloc(Destination->VertexCount, sizeof(struct Vec3));
   uint32_t* const restrict colors =
       calloc(Destination->IndexCount / 3, sizeof(uint32_t));
 
@@ -731,14 +706,7 @@ bool generateTorusKnotModel(const float Radius, const float TubeRadius,
     }
   }
 
-  for (size_t i = 0; i < Destination->IndexCount; i += 3) {
-    const struct Vec3 v0 = vertices[indices[i]];
-    const struct Vec3 v1 = vertices[indices[i + 1]];
-    const struct Vec3 v2 = vertices[indices[i + 2]];
-    const struct Vec3 edge1 = vec3Sub(v1, v0);
-    const struct Vec3 edge2 = vec3Sub(v2, v0);
-    normals[i / 3] = vec3Normalize(vec3Cross(edge1, edge2));
-  }
+  calculateNormals(vertices, indices, Destination->IndexCount, normals);
 
   for (size_t i = 0; i < Destination->IndexCount / 3; ++i) {
     colors[i] = getRandomColor();

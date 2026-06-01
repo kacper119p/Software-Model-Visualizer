@@ -351,21 +351,35 @@ void drawModel(const struct Framebuffer* Framebuffer, const struct Model* Model,
                                            Model->Vertices[index2].Y,
                                            Model->Vertices[index2].Z, 1.0f));
 
-    const struct Vec4 wn = mat4MulVec4(
-        ModelMatrix, MAKE_VEC4(Model->Normals[i / 3].X, Model->Normals[i / 3].Y,
-                               Model->Normals[i / 3].Z, 0.0f));
-    const struct Vec3 worldNormal = vec3Normalize(MAKE_VEC3(wn.X, wn.Y, wn.Z));
+    const struct Vec4 worldNormal0 =
+        mat4MulVec4(ModelMatrix, MAKE_VEC4(Model->Normals[index0].X,
+                                           Model->Normals[index0].Y,
+                                           Model->Normals[index0].Z, 0.0f));
+    const struct Vec4 worldNormal1 =
+        mat4MulVec4(ModelMatrix, MAKE_VEC4(Model->Normals[index1].X,
+                                           Model->Normals[index1].Y,
+                                           Model->Normals[index1].Z, 0.0f));
+    const struct Vec4 wordlNormal2 =
+        mat4MulVec4(ModelMatrix, MAKE_VEC4(Model->Normals[index2].X,
+                                           Model->Normals[index2].Y,
+                                           Model->Normals[index2].Z, 0.0f));
 
     const uint32_t baseColor = Model->Colors[i / 3];
-    const uint32_t c0 =
+    const uint32_t color0 =
         computeVertexColor(baseColor, MAKE_VEC3(world0.X, world0.Y, world0.Z),
-                           worldNormal, LightBuffer);
-    const uint32_t c1 =
+                           vec3Normalize(MAKE_VEC3(
+                               worldNormal0.X, worldNormal0.Y, worldNormal0.Z)),
+                           LightBuffer);
+    const uint32_t color1 =
         computeVertexColor(baseColor, MAKE_VEC3(world1.X, world1.Y, world1.Z),
-                           worldNormal, LightBuffer);
-    const uint32_t c2 =
+                           vec3Normalize(MAKE_VEC3(
+                               worldNormal1.X, worldNormal1.Y, worldNormal1.Z)),
+                           LightBuffer);
+    const uint32_t color2 =
         computeVertexColor(baseColor, MAKE_VEC3(world2.X, world2.Y, world2.Z),
-                           worldNormal, LightBuffer);
+                           vec3Normalize(MAKE_VEC3(
+                               wordlNormal2.X, wordlNormal2.Y, wordlNormal2.Z)),
+                           LightBuffer);
 
     const struct Vec4 clip0 =
         mat4MulVec4(MvpMatrix, MAKE_VEC4(Model->Vertices[index0].X,
@@ -380,7 +394,8 @@ void drawModel(const struct Framebuffer* Framebuffer, const struct Model* Model,
                                          Model->Vertices[index2].Y,
                                          Model->Vertices[index2].Z, 1.0f));
 
-    const struct ClippedVertex in[3] = {{clip0, c0}, {clip1, c1}, {clip2, c2}};
+    const struct ClippedVertex in[3] = {
+        {clip0, color0}, {clip1, color1}, {clip2, color2}};
     struct ClippedVertex out[4];
     const int outCount = clipTriangleNearPlane(in, out);
     if (outCount < 3) {
