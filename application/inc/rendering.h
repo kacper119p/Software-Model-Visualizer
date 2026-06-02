@@ -40,13 +40,15 @@ void drawTriangle(const struct Framebuffer* Framebuffer, struct Vec3 V0,
                   struct Vec3 WorldPos2, struct Vec3 WorldNormal0,
                   struct Vec3 WorldNormal1, struct Vec3 WorldNormal2,
                   struct Vec3 BaseColor0, struct Vec3 BaseColor1,
-                  struct Vec3 BaseColor2, struct Vec3 Light0, struct Vec3 Light2,
-                  struct Vec3 Light3, const struct LightBuffer* PixelLights);
-
+                  struct Vec3 BaseColor2, struct Vec3 Light0,
+                  struct Vec3 Light2, struct Vec3 Light3,
+                  const struct LightBuffer* PixelLights,
+                  struct Vec3 CameraPosition);
 void drawModel(const struct Framebuffer* Framebuffer, const struct Model* Model,
                struct Mat4 ModelMatrix, struct Mat4 MvpMatrix,
                const struct LightBuffer* VertexLights,
-               const struct LightBuffer* PixelLights);
+               const struct LightBuffer* PixelLights,
+               struct Vec3 CameraPosition);
 void drawModelMesh(const struct Framebuffer* Framebuffer,
                    const struct Model* Model, struct Mat4 Transform,
                    uint32_t Color);

@@ -44,11 +44,6 @@ static inline void ndcToScreenNormalized(const struct Vec3 Ndc,
   Normalized->Z = (Ndc.Z + 1.0f) * 0.5f;
 }
 
-static inline struct Vec3 evaluateLights(const struct LightBuffer* Lights,
-                                         struct Vec3 WorldPos,
-                                         struct Vec3 WorldNormal,
-                                         struct Vec3 BaseLinear);
-
 static inline struct Vec3 colorUintToLinear(const uint32_t Color) {
   const struct Color c = colorUintToColorStruct(Color);
   return MAKE_VEC3(c.R / 255.0f, c.G / 255.0f, c.B / 255.0f);
@@ -72,24 +67,33 @@ lerpClippedVertex(const struct ClippedVertex A, const struct ClippedVertex B,
 static inline struct Vec3 evaluateLights(const struct LightBuffer* const Lights,
                                          const struct Vec3 WorldPos,
                                          const struct Vec3 WorldNormal,
-                                         const struct Vec3 BaseLinear) {
+                                         const struct Vec3 BaseColor,
+                                         const struct Vec3 CameraPosition) {
   struct Vec3 accumulated = VEC3_ZERO;
   if (Lights == nullptr) {
     return accumulated;
   }
 
+  static constexpr float smoothness = 512.0f;
+
+  const struct Vec3 viewDir = vec3Normalize(vec3Sub(CameraPosition, WorldPos));
   const uint32_t count = lightBufferGetCount(Lights);
   for (uint32_t i = 0; i < count; ++i) {
     const struct LightEntry entry = lightBufferGet(Lights, i);
-    struct Vec3 lightContrib = VEC3_ZERO;
+    struct Vec3 lightColor = VEC3_ZERO;
+    float diffuseIntensity = 0.0f;
+    float specularIntensity = 0.0f;
 
     switch (entry.Type) {
     case LIGHT_TYPE_DIRECTIONAL: {
       const struct DirectionalLight* l = entry.Data;
-      const float diff =
-          fmaxf(0.0f, vec3Dot(WorldNormal,
-                              vec3Normalize(vec3Scale(l->direction, -1.0f))));
-      lightContrib = vec3Scale(l->color, diff);
+      const struct Vec3 lightDir =
+          vec3Normalize(vec3Scale(l->direction, -1.0f));
+      diffuseIntensity = fmaxf(0.0f, vec3Dot(WorldNormal, lightDir));
+      const struct Vec3 halfVec = vec3Normalize(vec3Add(lightDir, viewDir));
+      specularIntensity =
+          powf(fmaxf(0.0f, vec3Dot(WorldNormal, halfVec)), smoothness);
+      lightColor = l->color;
       break;
     }
     case LIGHT_TYPE_POINT: {
@@ -97,11 +101,16 @@ static inline struct Vec3 evaluateLights(const struct LightBuffer* const Lights,
       const struct Vec3 toLight = vec3Sub(l->Position, WorldPos);
       const float dist = vec3Len(toLight);
       if (dist < l->Range) {
-        const float diff =
-            fmaxf(0.0f, vec3Dot(WorldNormal, vec3Div(toLight, dist)));
+        const struct Vec3 lightDir = vec3Div(toLight, dist);
+        diffuseIntensity = fmaxf(0.0f, vec3Dot(WorldNormal, lightDir));
+        const struct Vec3 halfVec = vec3Normalize(vec3Add(lightDir, viewDir));
+        specularIntensity =
+            powf(fmaxf(0.0f, vec3Dot(WorldNormal, halfVec)), smoothness);
         const float attenuation = 1.0f / (1.0f + l->LinearFalloff * dist +
                                           l->QuadraticFalloff * dist * dist);
-        lightContrib = vec3Scale(l->Color, diff * attenuation);
+        diffuseIntensity *= attenuation;
+        specularIntensity *= attenuation;
+        lightColor = l->Color;
       }
       break;
     }
@@ -110,26 +119,31 @@ static inline struct Vec3 evaluateLights(const struct LightBuffer* const Lights,
       const struct Vec3 toLight = vec3Sub(l->Position, WorldPos);
       const float dist = vec3Len(toLight);
       if (dist < l->Range) {
-        const struct Vec3 toLightDir = vec3Div(toLight, dist);
-        const float diff = fmaxf(0.0f, vec3Dot(WorldNormal, toLightDir));
+        const struct Vec3 lightDir = vec3Div(toLight, dist);
+        diffuseIntensity = fmaxf(0.0f, vec3Dot(WorldNormal, lightDir));
+        const struct Vec3 halfVec = vec3Normalize(vec3Add(lightDir, viewDir));
+        specularIntensity =
+            powf(fmaxf(0.0f, vec3Dot(WorldNormal, halfVec)), smoothness);
         const float cosAngle =
-            vec3Dot(toLightDir, vec3Normalize(vec3Scale(l->Direction, -1.0f)));
+            vec3Dot(lightDir, vec3Normalize(vec3Scale(l->Direction, -1.0f)));
         const float cosOuter = cosf(l->OuterAngle);
         const float cosInner = cosf(l->InnerAngle);
         const float spot = fmaxf(
             0.0f, fminf(1.0f, (cosAngle - cosOuter) / (cosInner - cosOuter)));
         const float attenuation = spot / (1.0f + l->LinearFalloff * dist +
                                           l->QuadraticFalloff * dist * dist);
-        lightContrib = vec3Scale(l->Color, diff * attenuation);
+        diffuseIntensity *= attenuation;
+        specularIntensity *= attenuation;
+        lightColor = l->Color;
       }
       break;
     }
     }
 
-    accumulated =
-        vec3Add(accumulated, MAKE_VEC3(lightContrib.X * BaseLinear.X,
-                                       lightContrib.Y * BaseLinear.Y,
-                                       lightContrib.Z * BaseLinear.Z));
+    accumulated = vec3Add(
+        accumulated,
+        vec3Mul(lightColor,
+                vec3Scale(BaseColor, diffuseIntensity + specularIntensity)));
   }
 
   return accumulated;
@@ -227,7 +241,8 @@ void drawTriangle(const struct Framebuffer* Framebuffer, const struct Vec3 V0,
                   const struct Vec3 BaseColor1, const struct Vec3 BaseColor2,
                   const struct Vec3 Light0, const struct Vec3 Light2,
                   const struct Vec3 Light3,
-                  const struct LightBuffer* PixelLights) {
+                  const struct LightBuffer* PixelLights,
+                  struct Vec3 CameraPosition) {
   struct Vec3 norm0;
   struct Vec3 norm1;
   struct Vec3 norm2;
@@ -356,8 +371,9 @@ void drawTriangle(const struct Framebuffer* Framebuffer, const struct Vec3 V0,
                     b0 * baseColor0.Z + b1 * baseColor1.Z + b2 * baseColor2.Z),
                 wInterp);
 
-            final = vec3Add(final, evaluateLights(PixelLights, worldPos,
-                                                  worldNormal, baseLinear));
+            final = vec3Add(final,
+                            evaluateLights(PixelLights, worldPos, worldNormal,
+                                           baseLinear, CameraPosition));
           }
 
           Framebuffer->DepthBuffer[pixelIndex] = depth;
@@ -402,7 +418,8 @@ static int32_t clipTriangleNearPlane(const struct ClippedVertex In[3],
 void drawModel(const struct Framebuffer* Framebuffer, const struct Model* Model,
                const struct Mat4 ModelMatrix, const struct Mat4 MvpMatrix,
                const struct LightBuffer* const VertexLights,
-               const struct LightBuffer* const PixelLights) {
+               const struct LightBuffer* const PixelLights,
+               const struct Vec3 CameraPosition) {
   for (size_t i = 0; i < Model->IndexCount; i += 3) {
     const uint32_t index0 = Model->Indices[i];
     const uint32_t index1 = Model->Indices[i + 1];
@@ -446,12 +463,12 @@ void drawModel(const struct Framebuffer* Framebuffer, const struct Model* Model,
 
     const struct Vec3 baseLinear = colorUintToLinear(Model->Colors[i / 3]);
 
-    const struct Vec3 light0 =
-        evaluateLights(VertexLights, worldPos0, worldNormal0, baseLinear);
-    const struct Vec3 light1 =
-        evaluateLights(VertexLights, worldPos1, worldNormal1, baseLinear);
-    const struct Vec3 light2 =
-        evaluateLights(VertexLights, worldPos2, worldNormal2, baseLinear);
+    const struct Vec3 light0 = evaluateLights(
+        VertexLights, worldPos0, worldNormal0, baseLinear, CameraPosition);
+    const struct Vec3 light1 = evaluateLights(
+        VertexLights, worldPos1, worldNormal1, baseLinear, CameraPosition);
+    const struct Vec3 light2 = evaluateLights(
+        VertexLights, worldPos2, worldNormal2, baseLinear, CameraPosition);
 
     const struct Vec4 clip0 =
         mat4MulVec4(MvpMatrix, MAKE_VEC4(Model->Vertices[index0].X,
@@ -490,7 +507,7 @@ void drawModel(const struct Framebuffer* Framebuffer, const struct Model* Model,
                    out[k + 1].WorldPos, out[0].WorldNormal, out[k].WorldNormal,
                    out[k + 1].WorldNormal, out[0].BaseLinear, out[k].BaseLinear,
                    out[k + 1].BaseLinear, out[0].Lit, out[k].Lit,
-                   out[k + 1].Lit, PixelLights);
+                   out[k + 1].Lit, PixelLights, CameraPosition);
     }
   }
 }

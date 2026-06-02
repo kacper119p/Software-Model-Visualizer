@@ -53,8 +53,8 @@ static void setupLights(struct LightBuffer* const VertexLights,
                                        .QuadraticFalloff = 0.5f};
   lightBufferAddPoint(PixelLights, &pointKnot);
 
-  const struct Spotlight spotSphere = {.Position = {-3.0f, 2.5f, 0.0f},
-                                       .Direction = {0.0f, -1.0f, 0.0f},
+  const struct Spotlight spotSphere = {.Position = {-5.0f, 0.0f, 0.0f},
+                                       .Direction = {1.0f, -0.0f, 0.0f},
                                        .Color = {0.2f, 0.4f, 1.0f},
                                        .Range = 5.0f,
                                        .LinearFalloff = 0.1f,
@@ -62,6 +62,16 @@ static void setupLights(struct LightBuffer* const VertexLights,
                                        .OuterAngle = 0.35f,
                                        .InnerAngle = 0.15f};
   lightBufferAddSpotlight(PixelLights, &spotSphere);
+
+  const struct Spotlight spotSphereVertex = {.Position = {-5.0f, 2.5f, 0.0f},
+                                             .Direction = {1.0f, -0.0f, 0.0f},
+                                             .Color = {0.2f, 0.4f, 1.0f},
+                                             .Range = 5.0f,
+                                             .LinearFalloff = 0.1f,
+                                             .QuadraticFalloff = 0.05f,
+                                             .OuterAngle = 0.35f,
+                                             .InnerAngle = 0.15f};
+  lightBufferAddSpotlight(VertexLights, &spotSphereVertex);
 
   const struct Spotlight vertexPointLight = {.Position = {3.0f, 0.0f, 0.0f},
                                              .Color = {0.1f, 1.0f, 0.1f},
@@ -76,10 +86,11 @@ static void drawAt(struct Framebuffer* const Framebuffer,
                    const struct Model* const Model, const struct Vec3 Position,
                    const struct Mat4 VpMatrix,
                    const struct LightBuffer* const VertexLights,
-                   const struct LightBuffer* const PixelLights) {
+                   const struct LightBuffer* const PixelLights,
+                   const struct Vec3 CameraPosition) {
   const struct Mat4 modelMatrix = makeMat4Translation(Position);
   drawModel(Framebuffer, Model, modelMatrix, mat4Mul(VpMatrix, modelMatrix),
-            VertexLights, PixelLights);
+            VertexLights, PixelLights, CameraPosition);
 }
 
 static void setWhite(struct Model* const Model) {
@@ -107,15 +118,15 @@ static void renderFrame(struct Framebuffer* const Framebuffer,
       proj, makeMat4LookAt(eye, VEC3_ZERO, MAKE_VEC3(0.0f, 1.0f, 0.0f)));
 
   drawAt(Framebuffer, Sphere, MAKE_VEC3(-3.0f, 0.0f, 0.0f), vp, VertexLights,
-         PixelLights);
+         PixelLights, eye);
   drawAt(Framebuffer, Sphere, MAKE_VEC3(-3.0f, 2.5f, 0.0f), vp, VertexLights,
-         PixelLights);
+         PixelLights, eye);
   drawAt(Framebuffer, Torus, MAKE_VEC3(0.0f, 0.0f, -3.0f), vp, VertexLights,
-         PixelLights);
+         PixelLights, eye);
   drawAt(Framebuffer, TorusKnot, MAKE_VEC3(0.0f, 0.0f, 3.0f), vp, VertexLights,
-         PixelLights);
+         PixelLights, eye);
   drawAt(Framebuffer, TorusKnot, MAKE_VEC3(3.0f, 0.0f, 0.0f), vp, VertexLights,
-         PixelLights);
+         PixelLights, eye);
 }
 
 int main(void) {
@@ -148,8 +159,8 @@ int main(void) {
   while (!window.ShouldClose) {
     const float currentTime = getElapsedTime(&timeQuery);
     peekWindowMessages(&window);
-    renderFrame(&window.Framebuffer, &sphere, &torus, &torusKnot,
-                currentTime, &vertexLightsBuffer, &pixelLightsBuffer);
+    renderFrame(&window.Framebuffer, &sphere, &torus, &torusKnot, currentTime,
+                &vertexLightsBuffer, &pixelLightsBuffer);
     presentWindow(&window);
   }
 
