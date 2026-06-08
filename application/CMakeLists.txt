@@ -22,6 +22,7 @@
 set(SOURCE_FILES
         src/model.c
         src/rendering.c
+        src/texture.c
         src/lights/lightBuffer.c
 )
 
@@ -34,6 +35,7 @@ set(HEADER_FILES
         inc/graphicsMath.h
         inc/model.h
         inc/rendering.h
+        inc/texture.h
         inc/timeQuery.h
 )
 
@@ -56,8 +58,7 @@ add_executable(${PROJECT_NAME} src/main.c ${SOURCE_FILES})
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/inc)
 
-target_link_libraries(${PROJECT_NAME} PRIVATE cgltf)
-
+target_link_libraries(${PROJECT_NAME} PRIVATE cgltf stb_image)
 if (WIN32)
     target_link_options(${PROJECT_NAME} PRIVATE -static)
     target_compile_definitions(${PROJECT_NAME} PRIVATE NOMINMAX)
@@ -85,7 +86,7 @@ add_test_executable(${TEST_NAME}
         ${TEST_SOURCE_FILES}
 )
 
-target_link_libraries(${TEST_NAME} PRIVATE cgltf)
+target_link_libraries(${TEST_NAME} PRIVATE cgltf stb_image)
 target_include_directories(${TEST_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/inc)
 
 if (WIN32)

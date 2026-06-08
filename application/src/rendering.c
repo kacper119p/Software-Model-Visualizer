@@ -22,6 +22,7 @@
  */
 #include "rendering.h"
 
+#include "texture.h"
 #include <stdlib.h>
 
 struct ClippedVertex {
@@ -29,7 +30,7 @@ struct ClippedVertex {
   struct Vec3 WorldPos;
   struct Vec3 WorldNormal;
   struct Vec3 BaseLinear;
-  struct Vec3 Lit;
+  struct Vec2 Uv;
 };
 
 static inline float edgeFunction(const struct Vec2 A, const struct Vec2 B,
@@ -60,7 +61,7 @@ lerpClippedVertex(const struct ClippedVertex A, const struct ClippedVertex B,
   r.WorldPos = vec3Lerp(A.WorldPos, B.WorldPos, T);
   r.WorldNormal = vec3Lerp(A.WorldNormal, B.WorldNormal, T);
   r.BaseLinear = vec3Lerp(A.BaseLinear, B.BaseLinear, T);
-  r.Lit = vec3Lerp(A.Lit, B.Lit, T);
+  r.Uv = vec2Lerp(A.Uv, B.Uv, T);
   return r;
 }
 
@@ -184,7 +185,8 @@ void drawPixel(const struct Framebuffer* const Framebuffer, const uint32_t X,
 
 void drawLine(const struct Framebuffer* const Framebuffer, const struct Vec3 V0,
               const struct Vec3 V1, const uint32_t Color) {
-  struct Vec3 norm0, norm1;
+  struct Vec3 norm0;
+  struct Vec3 norm1;
   ndcToScreenNormalized(V0, &norm0);
   ndcToScreenNormalized(V1, &norm1);
 
@@ -239,8 +241,8 @@ void drawTriangle(const struct Framebuffer* Framebuffer, const struct Vec3 V0,
                   const struct Vec3 WorldNormal1,
                   const struct Vec3 WorldNormal2, const struct Vec3 BaseColor0,
                   const struct Vec3 BaseColor1, const struct Vec3 BaseColor2,
-                  const struct Vec3 Light0, const struct Vec3 Light2,
-                  const struct Vec3 Light3,
+                  const struct Vec2 Uv0, const struct Vec2 Uv1,
+                  const struct Vec2 Uv2, const struct Texture* Texture,
                   const struct LightBuffer* PixelLights,
                   struct Vec3 CameraPosition) {
   struct Vec3 norm0;
@@ -306,9 +308,9 @@ void drawTriangle(const struct Framebuffer* Framebuffer, const struct Vec3 V0,
   const struct Vec3 baseColor0 = vec3Scale(BaseColor0, InvW0);
   const struct Vec3 baseColor1 = vec3Scale(BaseColor1, InvW1);
   const struct Vec3 baseColor2 = vec3Scale(BaseColor2, InvW2);
-  const struct Vec3 light0 = vec3Scale(Light0, InvW0);
-  const struct Vec3 light1 = vec3Scale(Light2, InvW1);
-  const struct Vec3 light2 = vec3Scale(Light3, InvW2);
+  const struct Vec2 uv0 = MAKE_VEC2(Uv0.X * InvW0, Uv0.Y * InvW0);
+  const struct Vec2 uv1 = MAKE_VEC2(Uv1.X * InvW1, Uv1.Y * InvW1);
+  const struct Vec2 uv2 = MAKE_VEC2(Uv2.X * InvW2, Uv2.Y * InvW2);
 
   size_t rowStartIndex = (size_t)minY * Framebuffer->Width;
 
@@ -339,13 +341,7 @@ void drawTriangle(const struct Framebuffer* Framebuffer, const struct Vec3 V0,
           const float invWInterp = b0 * InvW0 + b1 * InvW1 + b2 * InvW2;
           const float wInterp = 1.0f / invWInterp;
 
-          const struct Vec3 lit = vec3Scale(
-              MAKE_VEC3(b0 * light0.X + b1 * light1.X + b2 * light2.X,
-                        b0 * light0.Y + b1 * light1.Y + b2 * light2.Y,
-                        b0 * light0.Z + b1 * light1.Z + b2 * light2.Z),
-              wInterp);
-
-          struct Vec3 final = lit;
+          struct Vec3 final = VEC3_ZERO;
 
           if (hasPixelLights) {
             const struct Vec3 worldPos = vec3Scale(
@@ -364,12 +360,24 @@ void drawTriangle(const struct Framebuffer* Framebuffer, const struct Vec3 V0,
                                     b0 * worldNormal0.Z + b1 * worldNormal2.Z +
                                         b2 * worldNormal3.Z),
                           wInterp));
-            const struct Vec3 baseLinear = vec3Scale(
-                MAKE_VEC3(
-                    b0 * baseColor0.X + b1 * baseColor1.X + b2 * baseColor2.X,
-                    b0 * baseColor0.Y + b1 * baseColor1.Y + b2 * baseColor2.Y,
-                    b0 * baseColor0.Z + b1 * baseColor1.Z + b2 * baseColor2.Z),
-                wInterp);
+            const struct Vec2 uv =
+                MAKE_VEC2((b0 * uv0.X + b1 * uv1.X + b2 * uv2.X) * wInterp,
+                          (b0 * uv0.Y + b1 * uv1.Y + b2 * uv2.Y) * wInterp);
+            const struct Color texel = Texture != nullptr
+                                           ? textureSample(Texture, uv)
+                                           : (struct Color){0, 0, 0};
+            const struct Vec3 baseLinear =
+                Texture != nullptr
+                    ? MAKE_VEC3(texel.R / 255.0f, texel.G / 255.0f,
+                                texel.B / 255.0f)
+                    : vec3Scale(
+                          MAKE_VEC3(b0 * baseColor0.X + b1 * baseColor1.X +
+                                        b2 * baseColor2.X,
+                                    b0 * baseColor0.Y + b1 * baseColor1.Y +
+                                        b2 * baseColor2.Y,
+                                    b0 * baseColor0.Z + b1 * baseColor1.Z +
+                                        b2 * baseColor2.Z),
+                          wInterp);
 
             final = vec3Add(final,
                             evaluateLights(PixelLights, worldPos, worldNormal,
@@ -417,7 +425,7 @@ static int32_t clipTriangleNearPlane(const struct ClippedVertex In[3],
 
 void drawModel(const struct Framebuffer* Framebuffer, const struct Model* Model,
                const struct Mat4 ModelMatrix, const struct Mat4 MvpMatrix,
-               const struct LightBuffer* const VertexLights,
+               const struct Texture* Texture,
                const struct LightBuffer* const PixelLights,
                const struct Vec3 CameraPosition) {
   for (size_t i = 0; i < Model->IndexCount; i += 3) {
@@ -463,12 +471,12 @@ void drawModel(const struct Framebuffer* Framebuffer, const struct Model* Model,
 
     const struct Vec3 baseLinear = colorUintToLinear(Model->Colors[i / 3]);
 
-    const struct Vec3 light0 = evaluateLights(
-        VertexLights, worldPos0, worldNormal0, baseLinear, CameraPosition);
-    const struct Vec3 light1 = evaluateLights(
-        VertexLights, worldPos1, worldNormal1, baseLinear, CameraPosition);
-    const struct Vec3 light2 = evaluateLights(
-        VertexLights, worldPos2, worldNormal2, baseLinear, CameraPosition);
+    const struct Vec2 uv0 =
+        Model->TextureCoords ? Model->TextureCoords[index0] : VEC2_ZERO;
+    const struct Vec2 uv1 =
+        Model->TextureCoords ? Model->TextureCoords[index1] : VEC2_ZERO;
+    const struct Vec2 uv2 =
+        Model->TextureCoords ? Model->TextureCoords[index2] : VEC2_ZERO;
 
     const struct Vec4 clip0 =
         mat4MulVec4(MvpMatrix, MAKE_VEC4(Model->Vertices[index0].X,
@@ -484,9 +492,9 @@ void drawModel(const struct Framebuffer* Framebuffer, const struct Model* Model,
                                          Model->Vertices[index2].Z, 1.0f));
 
     const struct ClippedVertex in[3] = {
-        {clip0, worldPos0, worldNormal0, baseLinear, light0},
-        {clip1, worldPos1, worldNormal1, baseLinear, light1},
-        {clip2, worldPos2, worldNormal2, baseLinear, light2}};
+        {clip0, worldPos0, worldNormal0, baseLinear, uv0},
+        {clip1, worldPos1, worldNormal1, baseLinear, uv1},
+        {clip2, worldPos2, worldNormal2, baseLinear, uv2}};
     struct ClippedVertex out[4];
     const int outCount = clipTriangleNearPlane(in, out);
     if (outCount < 3) {
@@ -506,8 +514,8 @@ void drawModel(const struct Framebuffer* Framebuffer, const struct Model* Model,
                    invW[k + 1], out[0].WorldPos, out[k].WorldPos,
                    out[k + 1].WorldPos, out[0].WorldNormal, out[k].WorldNormal,
                    out[k + 1].WorldNormal, out[0].BaseLinear, out[k].BaseLinear,
-                   out[k + 1].BaseLinear, out[0].Lit, out[k].Lit,
-                   out[k + 1].Lit, PixelLights, CameraPosition);
+                   out[k + 1].BaseLinear, out[0].Uv, out[k].Uv, out[k + 1].Uv,
+                   Texture, PixelLights, CameraPosition);
     }
   }
 }

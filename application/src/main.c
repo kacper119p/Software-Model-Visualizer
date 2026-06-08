@@ -25,6 +25,7 @@
 #include "appWindow.h"
 #include "model.h"
 #include "rendering.h"
+#include "texture.h"
 #include "timeQuery.h"
 
 #include <stdlib.h>
@@ -33,28 +34,31 @@ static constexpr float cameraDistance = 8.0f;
 static constexpr float cameraHeight = 4.0f;
 static constexpr float cameraOrbitSpeed = 0.3f;
 
-static void setupLights(struct LightBuffer* const VertexLights,
-                        struct LightBuffer* const PixelLights) {
+static void setupLights(struct LightBuffer* const PixelLights) {
   const struct DirectionalLight dir = {.direction = {-1.0f, 0.0f, 0.0f},
                                        .color = {0.7f, 0.7f, 0.7f}};
   lightBufferAddDirectional(PixelLights, &dir);
 
-  const struct PointLight pointTorus = {.Position = {0.0f, 0.0f, -3.0f},
-                                        .Color = {1.0f, 0.1f, 0.1f},
-                                        .Range = 2.5f,
-                                        .LinearFalloff = 0.5f,
-                                        .QuadraticFalloff = 0.5f};
+  const struct PointLight pointTorus = {
+      .Position = {3.0f * sinf(120.0f * DegToRad), 0.0f,
+                   3.0f * cosf(120.0f * DegToRad)},
+      .Color = {1.0f, 0.1f, 0.1f},
+      .Range = 2.5f,
+      .LinearFalloff = 0.5f,
+      .QuadraticFalloff = 0.5f};
   lightBufferAddPoint(PixelLights, &pointTorus);
 
-  const struct PointLight pointKnot = {.Position = {0.0f, 0.0f, 3.0f},
-                                       .Color = {0.1f, 1.0f, 0.1f},
-                                       .Range = 2.5f,
-                                       .LinearFalloff = 0.5f,
-                                       .QuadraticFalloff = 0.5f};
+  const struct PointLight pointKnot = {
+      .Position = {3.0f * sinf(240.0f * DegToRad), 0.0f,
+                   3.0f * cosf(240.0f * DegToRad)},
+      .Color = {0.1f, 1.0f, 0.1f},
+      .Range = 2.5f,
+      .LinearFalloff = 0.5f,
+      .QuadraticFalloff = 0.5f};
   lightBufferAddPoint(PixelLights, &pointKnot);
 
-  const struct Spotlight spotSphere = {.Position = {-5.0f, 0.0f, 0.0f},
-                                       .Direction = {1.0f, -0.0f, 0.0f},
+  const struct Spotlight spotSphere = {.Position = {0.0f, 0.0f, 8.0f},
+                                       .Direction = {0.0f, 0.0f, -1.0f},
                                        .Color = {0.2f, 0.4f, 1.0f},
                                        .Range = 5.0f,
                                        .LinearFalloff = 0.1f,
@@ -62,48 +66,31 @@ static void setupLights(struct LightBuffer* const VertexLights,
                                        .OuterAngle = 0.35f,
                                        .InnerAngle = 0.15f};
   lightBufferAddSpotlight(PixelLights, &spotSphere);
-
-  const struct Spotlight spotSphereVertex = {.Position = {-5.0f, 2.5f, 0.0f},
-                                             .Direction = {1.0f, -0.0f, 0.0f},
-                                             .Color = {0.2f, 0.4f, 1.0f},
-                                             .Range = 5.0f,
-                                             .LinearFalloff = 0.1f,
-                                             .QuadraticFalloff = 0.05f,
-                                             .OuterAngle = 0.35f,
-                                             .InnerAngle = 0.15f};
-  lightBufferAddSpotlight(VertexLights, &spotSphereVertex);
-
-  const struct Spotlight vertexPointLight = {.Position = {3.0f, 0.0f, 0.0f},
-                                             .Color = {0.1f, 1.0f, 0.1f},
-                                             .Range = 2.5f,
-                                             .LinearFalloff = 0.5f,
-                                             .QuadraticFalloff = 0.5f};
-
-  lightBufferAddSpotlight(VertexLights, &vertexPointLight);
 }
 
-static void drawAt(struct Framebuffer* const Framebuffer,
+static void drawAt(const struct Framebuffer* const Framebuffer,
                    const struct Model* const Model, const struct Vec3 Position,
-                   const struct Mat4 VpMatrix,
-                   const struct LightBuffer* const VertexLights,
+                   const struct Mat4 VpMatrix, const struct Texture* const Texture,
                    const struct LightBuffer* const PixelLights,
                    const struct Vec3 CameraPosition) {
   const struct Mat4 modelMatrix = makeMat4Translation(Position);
   drawModel(Framebuffer, Model, modelMatrix, mat4Mul(VpMatrix, modelMatrix),
-            VertexLights, PixelLights, CameraPosition);
+            Texture, PixelLights, CameraPosition);
 }
 
-static void setWhite(struct Model* const Model) {
+static void setWhite(const struct Model* const Model) {
   for (size_t i = 0; i < Model->IndexCount / 3; ++i) {
     Model->Colors[i] = 0xFFFFFF;
   }
 }
 
-static void renderFrame(struct Framebuffer* const Framebuffer,
+static void renderFrame(const struct Framebuffer* const Framebuffer,
                         const struct Model* const Sphere,
                         const struct Model* const Torus,
                         const struct Model* const TorusKnot, const float Time,
-                        const struct LightBuffer* const VertexLights,
+                        const struct Texture* const TexSphere,
+                        const struct Texture* const TexTorus,
+                        const struct Texture* const TexTorusKnot,
                         const struct LightBuffer* const PixelLights) {
   clearColorBuffer(Framebuffer, 0x00000000);
   clearDepthBuffer(Framebuffer, 1.0f);
@@ -117,19 +104,24 @@ static void renderFrame(struct Framebuffer* const Framebuffer,
   const struct Mat4 vp = mat4Mul(
       proj, makeMat4LookAt(eye, VEC3_ZERO, MAKE_VEC3(0.0f, 1.0f, 0.0f)));
 
-  drawAt(Framebuffer, Sphere, MAKE_VEC3(-3.0f, 0.0f, 0.0f), vp, VertexLights,
-         PixelLights, eye);
-  drawAt(Framebuffer, Sphere, MAKE_VEC3(-3.0f, 2.5f, 0.0f), vp, VertexLights,
-         PixelLights, eye);
-  drawAt(Framebuffer, Torus, MAKE_VEC3(0.0f, 0.0f, -3.0f), vp, VertexLights,
-         PixelLights, eye);
-  drawAt(Framebuffer, TorusKnot, MAKE_VEC3(0.0f, 0.0f, 3.0f), vp, VertexLights,
-         PixelLights, eye);
-  drawAt(Framebuffer, TorusKnot, MAKE_VEC3(3.0f, 0.0f, 0.0f), vp, VertexLights,
-         PixelLights, eye);
+  constexpr float r = 3.0f;
+  drawAt(Framebuffer, Sphere, MAKE_VEC3(r * sinf(0.0f), 0.0f, r * cosf(0.0f)),
+         vp, TexSphere, PixelLights, eye);
+  drawAt(Framebuffer, Torus,
+         MAKE_VEC3(r * sinf(120.0f * DegToRad), 0.0f,
+                   r * cosf(120.0f * DegToRad)),
+         vp, TexTorus, PixelLights, eye);
+  drawAt(Framebuffer, TorusKnot,
+         MAKE_VEC3(r * sinf(240.0f * DegToRad), 0.0f,
+                   r * cosf(240.0f * DegToRad)),
+         vp, TexTorusKnot, PixelLights, eye);
 }
 
-int main(void) {
+int main(const int argc, const char* const argv[]) {
+  if (argc != 4) {
+    return EXIT_FAILURE;
+  }
+
   srand(time(nullptr));
 
   struct Model sphere = {0};
@@ -144,31 +136,46 @@ int main(void) {
   setWhite(&torus);
   setWhite(&torusKnot);
 
+  struct Texture texSphere = {0};
+  struct Texture texTorus = {0};
+  struct Texture texTorusKnot = {0};
+  if (loadTexture(argv[1], &texSphere) != LOAD_TEXTURE_RESULT_SUCCESS ||
+      loadTexture(argv[2], &texTorus) != LOAD_TEXTURE_RESULT_SUCCESS ||
+      loadTexture(argv[3], &texTorusKnot) != LOAD_TEXTURE_RESULT_SUCCESS) {
+    destroyTexture(&texSphere);
+    destroyTexture(&texTorus);
+    destroyTexture(&texTorusKnot);
+    destroyModel(&sphere);
+    destroyModel(&torus);
+    destroyModel(&torusKnot);
+    return EXIT_FAILURE;
+  }
+
   struct AppWindow window;
   createWindow(&window);
 
   struct TimeQuery timeQuery;
   initializeTimeQuery(&timeQuery);
 
-  struct LightBuffer vertexLightsBuffer;
-  lightBufferInit(&vertexLightsBuffer);
   struct LightBuffer pixelLightsBuffer;
   lightBufferInit(&pixelLightsBuffer);
-  setupLights(&vertexLightsBuffer, &pixelLightsBuffer);
+  setupLights(&pixelLightsBuffer);
 
   while (!window.ShouldClose) {
     const float currentTime = getElapsedTime(&timeQuery);
     peekWindowMessages(&window);
     renderFrame(&window.Framebuffer, &sphere, &torus, &torusKnot, currentTime,
-                &vertexLightsBuffer, &pixelLightsBuffer);
+                &texSphere, &texTorus, &texTorusKnot, &pixelLightsBuffer);
     presentWindow(&window);
   }
 
   destroyModel(&sphere);
   destroyModel(&torus);
   destroyModel(&torusKnot);
+  destroyTexture(&texSphere);
+  destroyTexture(&texTorus);
+  destroyTexture(&texTorusKnot);
   destroyWindow(&window);
   lightBufferDestroy(&pixelLightsBuffer);
-  lightBufferDestroy(&vertexLightsBuffer);
   return EXIT_SUCCESS;
 }

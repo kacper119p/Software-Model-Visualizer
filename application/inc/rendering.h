@@ -26,6 +26,7 @@
 #include "graphicsMath.h"
 #include "lights/lightBuffer.h"
 #include "model.h"
+#include "texture.h"
 
 void clearColorBuffer(const struct Framebuffer* Framebuffer,
                       uint32_t ClearValue);
@@ -40,13 +41,13 @@ void drawTriangle(const struct Framebuffer* Framebuffer, struct Vec3 V0,
                   struct Vec3 WorldPos2, struct Vec3 WorldNormal0,
                   struct Vec3 WorldNormal1, struct Vec3 WorldNormal2,
                   struct Vec3 BaseColor0, struct Vec3 BaseColor1,
-                  struct Vec3 BaseColor2, struct Vec3 Light0,
-                  struct Vec3 Light2, struct Vec3 Light3,
+                  struct Vec3 BaseColor2, struct Vec2 Uv0, struct Vec2 Uv1,
+                  struct Vec2 Uv2, const struct Texture* Texture,
                   const struct LightBuffer* PixelLights,
                   struct Vec3 CameraPosition);
 void drawModel(const struct Framebuffer* Framebuffer, const struct Model* Model,
                struct Mat4 ModelMatrix, struct Mat4 MvpMatrix,
-               const struct LightBuffer* VertexLights,
+               const struct Texture* Texture,
                const struct LightBuffer* PixelLights,
                struct Vec3 CameraPosition);
 void drawModelMesh(const struct Framebuffer* Framebuffer,

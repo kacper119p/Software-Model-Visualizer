@@ -132,7 +132,9 @@ static void calculateNormals(const struct Vec3* const Vertices,
                              const size_t IndexCount,
                              struct Vec3* const Normals) {
   for (size_t i = 0; i < IndexCount; i += 3) {
-    const uint32_t i0 = Indices[i], i1 = Indices[i + 1], i2 = Indices[i + 2];
+    const uint32_t i0 = Indices[i];
+    const uint32_t i1 = Indices[i + 1];
+    const uint32_t i2 = Indices[i + 2];
     const struct Vec3 edge1 = vec3Sub(Vertices[i1], Vertices[i0]);
     const struct Vec3 edge2 = vec3Sub(Vertices[i2], Vertices[i0]);
     const struct Vec3 faceNormal = vec3Cross(edge1, edge2);
@@ -320,7 +322,7 @@ enum LoadModelResult loadModel(const char* const FilePath,
             MAKE_VEC3(worldPosition.X, worldPosition.Y, worldPosition.Z);
       }
 
-      if (positionAccessor != nullptr) {
+      if (texCoordAccessor != nullptr) {
         for (uint32_t v = 0; v < primitiveVertexCount; ++v) {
           struct Vec2 textureCoord;
           cgltf_accessor_read_float(texCoordAccessor, v,
@@ -375,13 +377,16 @@ bool generateSphereModel(const float Radius, const uint32_t Segments,
       calloc(Destination->VertexCount, sizeof(struct Vec3));
   uint32_t* const restrict colors =
       calloc(Destination->IndexCount / 3, sizeof(uint32_t));
+  struct Vec2* const restrict textureCoords =
+      malloc(Destination->VertexCount * sizeof(struct Vec2));
 
   if (vertices == nullptr || indices == nullptr || normals == nullptr ||
-      colors == nullptr) {
+      colors == nullptr || textureCoords == nullptr) {
     free(vertices);
     free(indices);
     free(normals);
     free(colors);
+    free(textureCoords);
     return false;
   }
 
@@ -398,6 +403,8 @@ bool generateSphereModel(const float Radius, const uint32_t Segments,
 
       vertices[vertexIndex] = MAKE_VEC3(x, y, z);
       normals[vertexIndex] = MAKE_VEC3(x / Radius, y / Radius, z / Radius);
+      textureCoords[vertexIndex] =
+          MAKE_VEC2((float)j / (float)Segments, (float)i / (float)Rings);
       vertexIndex++;
     }
   }
@@ -429,6 +436,7 @@ bool generateSphereModel(const float Radius, const uint32_t Segments,
   Destination->Indices = indices;
   Destination->Normals = normals;
   Destination->Colors = colors;
+  Destination->TextureCoords = textureCoords;
 
   calculateAabb(Destination->Vertices, Destination->VertexCount,
                 &Destination->AabbMin, &Destination->AabbMax);
@@ -455,23 +463,29 @@ bool generateConeModel(const float Radius, const float Height,
       calloc(Destination->VertexCount, sizeof(struct Vec3));
   uint32_t* const restrict colors =
       calloc(Destination->IndexCount / 3, sizeof(uint32_t));
+  struct Vec2* const restrict textureCoords =
+      malloc(Destination->VertexCount * sizeof(struct Vec2));
 
   if (vertices == nullptr || indices == nullptr || normals == nullptr ||
-      colors == nullptr) {
+      colors == nullptr || textureCoords == nullptr) {
     free(vertices);
     free(indices);
     free(normals);
     free(colors);
+    free(textureCoords);
     return false;
   }
 
   vertices[0] = MAKE_VEC3(0.0f, Height, 0.0f);
   vertices[1] = MAKE_VEC3(0.0f, 0.0f, 0.0f);
+  textureCoords[0] = MAKE_VEC2(0.5f, 0.0f);
+  textureCoords[1] = MAKE_VEC2(0.5f, 1.0f);
 
   for (uint32_t i = 0; i < Segments; ++i) {
     const float theta = (float)i * 2.0f * Pi / (float)Segments;
     vertices[2 + i] =
         MAKE_VEC3(Radius * cosf(theta), 0.0f, Radius * sinf(theta));
+    textureCoords[2 + i] = MAKE_VEC2(theta / (2.0f * Pi), 1.0f);
   }
 
   size_t indexOffset = 0;
@@ -497,7 +511,7 @@ bool generateConeModel(const float Radius, const float Height,
   Destination->Indices = indices;
   Destination->Normals = normals;
   Destination->Colors = colors;
-  Destination->TextureCoords = nullptr;
+  Destination->TextureCoords = textureCoords;
 
   calculateAabb(Destination->Vertices, Destination->VertexCount,
                 &Destination->AabbMin, &Destination->AabbMax);
@@ -515,7 +529,7 @@ bool generateTorusModel(const float MajorRadius, const float MinorRadius,
     return false;
   }
 
-  Destination->VertexCount = MajorSegments * MinorSegments;
+  Destination->VertexCount = (MajorSegments + 1) * (MinorSegments + 1);
   Destination->IndexCount = MajorSegments * MinorSegments * 6;
 
   struct Vec3* const restrict vertices =
@@ -526,38 +540,41 @@ bool generateTorusModel(const float MajorRadius, const float MinorRadius,
       calloc(Destination->VertexCount, sizeof(struct Vec3));
   uint32_t* const restrict colors =
       calloc(Destination->IndexCount / 3, sizeof(uint32_t));
+  struct Vec2* const restrict textureCoords =
+      malloc(Destination->VertexCount * sizeof(struct Vec2));
 
   if (vertices == nullptr || indices == nullptr || normals == nullptr ||
-      colors == nullptr) {
+      colors == nullptr || textureCoords == nullptr) {
     free(vertices);
     free(indices);
     free(normals);
     free(colors);
+    free(textureCoords);
     return false;
   }
 
-  for (uint32_t i = 0; i < MajorSegments; ++i) {
+  for (uint32_t i = 0; i <= MajorSegments; ++i) {
     const float phi = (float)i * 2.0f * Pi / (float)MajorSegments;
     const float cosPhi = cosf(phi);
     const float sinPhi = sinf(phi);
 
-    for (uint32_t j = 0; j < MinorSegments; ++j) {
+    for (uint32_t j = 0; j <= MinorSegments; ++j) {
       const float theta = (float)j * 2.0f * Pi / (float)MinorSegments;
       const float r = MajorRadius + MinorRadius * cosf(theta);
-      vertices[i * MinorSegments + j] =
+      vertices[i * (MinorSegments + 1) + j] =
           MAKE_VEC3(r * cosPhi, MinorRadius * sinf(theta), r * sinPhi);
+      textureCoords[i * (MinorSegments + 1) + j] = MAKE_VEC2(
+          (float)i / (float)MajorSegments, (float)j / (float)MinorSegments);
     }
   }
 
   size_t indexOffset = 0;
   for (uint32_t i = 0; i < MajorSegments; ++i) {
-    const uint32_t nextI = (i + 1) % MajorSegments;
     for (uint32_t j = 0; j < MinorSegments; ++j) {
-      const uint32_t nextJ = (j + 1) % MinorSegments;
-      const uint32_t a = i * MinorSegments + j;
-      const uint32_t b = i * MinorSegments + nextJ;
-      const uint32_t c = nextI * MinorSegments + j;
-      const uint32_t d = nextI * MinorSegments + nextJ;
+      const uint32_t a = i * (MinorSegments + 1) + j;
+      const uint32_t b = i * (MinorSegments + 1) + j + 1;
+      const uint32_t c = (i + 1) * (MinorSegments + 1) + j;
+      const uint32_t d = (i + 1) * (MinorSegments + 1) + j + 1;
 
       indices[indexOffset++] = a;
       indices[indexOffset++] = b;
@@ -579,7 +596,7 @@ bool generateTorusModel(const float MajorRadius, const float MinorRadius,
   Destination->Indices = indices;
   Destination->Normals = normals;
   Destination->Colors = colors;
-  Destination->TextureCoords = nullptr;
+  Destination->TextureCoords = textureCoords;
 
   calculateAabb(Destination->Vertices, Destination->VertexCount,
                 &Destination->AabbMin, &Destination->AabbMax);
@@ -598,7 +615,7 @@ bool generateTorusKnotModel(const float Radius, const float TubeRadius,
     return false;
   }
 
-  Destination->VertexCount = CurveSegments * TubeSegments;
+  Destination->VertexCount = (CurveSegments + 1) * (TubeSegments + 1);
   Destination->IndexCount = CurveSegments * TubeSegments * 6;
 
   struct Vec3* const restrict vertices =
@@ -609,13 +626,16 @@ bool generateTorusKnotModel(const float Radius, const float TubeRadius,
       calloc(Destination->VertexCount, sizeof(struct Vec3));
   uint32_t* const restrict colors =
       calloc(Destination->IndexCount / 3, sizeof(uint32_t));
+  struct Vec2* const restrict textureCoords =
+      malloc(Destination->VertexCount * sizeof(struct Vec2));
 
   if (vertices == nullptr || indices == nullptr || normals == nullptr ||
-      colors == nullptr) {
+      colors == nullptr || textureCoords == nullptr) {
     free(vertices);
     free(indices);
     free(normals);
     free(colors);
+    free(textureCoords);
     return false;
   }
 
@@ -630,6 +650,7 @@ bool generateTorusKnotModel(const float Radius, const float TubeRadius,
     free(indices);
     free(normals);
     free(colors);
+    free(textureCoords);
     free(centers);
     free(tangents);
     free(normals2);
@@ -665,21 +686,47 @@ bool generateTorusKnotModel(const float Radius, const float TubeRadius,
     binormals[i] = vec3Cross(t, normals2[i]);
   }
 
+  float* const arcLength = malloc((CurveSegments + 1) * sizeof(float));
+  if (arcLength == nullptr) {
+    free(vertices);
+    free(indices);
+    free(normals);
+    free(colors);
+    free(textureCoords);
+    free(centers);
+    free(tangents);
+    free(normals2);
+    free(binormals);
+    return false;
+  }
+  arcLength[0] = 0.0f;
   for (uint32_t i = 0; i < CurveSegments; ++i) {
-    for (uint32_t j = 0; j < TubeSegments; ++j) {
-      const float theta = (float)j * 2.0f * Pi / (float)TubeSegments;
+    arcLength[i + 1] =
+        arcLength[i] + vec3Dist(centers[i], centers[(i + 1) % CurveSegments]);
+  }
+  const float totalLength = arcLength[CurveSegments];
+
+  for (uint32_t i = 0; i <= CurveSegments; ++i) {
+    const uint32_t si = i % CurveSegments;
+    for (uint32_t j = 0; j <= TubeSegments; ++j) {
+      const uint32_t sj = j % TubeSegments;
+      const float theta = (float)sj * 2.0f * Pi / (float)TubeSegments;
       const float cosTheta = cosf(theta);
       const float sinTheta = sinf(theta);
 
-      vertices[i * TubeSegments + j] =
-          MAKE_VEC3(centers[i].X + TubeRadius * (cosTheta * normals2[i].X +
-                                                 sinTheta * binormals[i].X),
-                    centers[i].Y + TubeRadius * (cosTheta * normals2[i].Y +
-                                                 sinTheta * binormals[i].Y),
-                    centers[i].Z + TubeRadius * (cosTheta * normals2[i].Z +
-                                                 sinTheta * binormals[i].Z));
+      vertices[i * (TubeSegments + 1) + j] =
+          MAKE_VEC3(centers[si].X + TubeRadius * (cosTheta * normals2[si].X +
+                                                  sinTheta * binormals[si].X),
+                    centers[si].Y + TubeRadius * (cosTheta * normals2[si].Y +
+                                                  sinTheta * binormals[si].Y),
+                    centers[si].Z + TubeRadius * (cosTheta * normals2[si].Z +
+                                                  sinTheta * binormals[si].Z));
+      textureCoords[i * (TubeSegments + 1) + j] =
+          MAKE_VEC2(arcLength[i] / totalLength, (float)j / (float)TubeSegments);
     }
   }
+
+  free(arcLength);
 
   free(centers);
   free(tangents);
@@ -688,13 +735,11 @@ bool generateTorusKnotModel(const float Radius, const float TubeRadius,
 
   size_t indexOffset = 0;
   for (uint32_t i = 0; i < CurveSegments; ++i) {
-    const uint32_t nextI = (i + 1) % CurveSegments;
     for (uint32_t j = 0; j < TubeSegments; ++j) {
-      const uint32_t nextJ = (j + 1) % TubeSegments;
-      const uint32_t a = i * TubeSegments + j;
-      const uint32_t b = i * TubeSegments + nextJ;
-      const uint32_t c = nextI * TubeSegments + j;
-      const uint32_t d = nextI * TubeSegments + nextJ;
+      const uint32_t a = i * (TubeSegments + 1) + j;
+      const uint32_t b = i * (TubeSegments + 1) + j + 1;
+      const uint32_t c = (i + 1) * (TubeSegments + 1) + j;
+      const uint32_t d = (i + 1) * (TubeSegments + 1) + j + 1;
 
       indices[indexOffset++] = a;
       indices[indexOffset++] = b;
@@ -708,6 +753,15 @@ bool generateTorusKnotModel(const float Radius, const float TubeRadius,
 
   calculateNormals(vertices, indices, Destination->IndexCount, normals);
 
+  for (uint32_t j = 0; j <= TubeSegments; ++j) {
+    const uint32_t first = j;
+    const uint32_t last = CurveSegments * (TubeSegments + 1) + j;
+    const struct Vec3 avg =
+        vec3Normalize(vec3Add(normals[first], normals[last]));
+    normals[first] = avg;
+    normals[last] = avg;
+  }
+
   for (size_t i = 0; i < Destination->IndexCount / 3; ++i) {
     colors[i] = getRandomColor();
   }
@@ -716,7 +770,7 @@ bool generateTorusKnotModel(const float Radius, const float TubeRadius,
   Destination->Indices = indices;
   Destination->Normals = normals;
   Destination->Colors = colors;
-  Destination->TextureCoords = nullptr;
+  Destination->TextureCoords = textureCoords;
 
   calculateAabb(Destination->Vertices, Destination->VertexCount,
                 &Destination->AabbMin, &Destination->AabbMax);

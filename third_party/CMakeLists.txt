@@ -24,6 +24,12 @@ set(CGLTF_SOURCE_DIR ${CGLTF_DIR} CACHE INTERNAL "")
 add_library(cgltf STATIC ${CGLTF_DIR}/cgltf.c)
 target_include_directories(cgltf PUBLIC ${CGLTF_DIR})
 
+set(STB_IMAGE_DIR ${CMAKE_CURRENT_LIST_DIR}/stb_image)
+set(stb_image_SOURCE_DIR ${STB_IMAGE_DIR} CACHE INTERNAL "")
+add_library(stb_image STATIC ${STB_IMAGE_DIR}/stb_image.c)
+target_include_directories(stb_image PUBLIC ${STB_IMAGE_DIR})
+
 set_target_properties(
         cgltf
+        stb_image
         PROPERTIES FOLDER "third_party")
