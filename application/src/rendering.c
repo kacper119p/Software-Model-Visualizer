@@ -341,7 +341,25 @@ void drawTriangle(const struct Framebuffer* Framebuffer, const struct Vec3 V0,
           const float invWInterp = b0 * InvW0 + b1 * InvW1 + b2 * InvW2;
           const float wInterp = 1.0f / invWInterp;
 
-          struct Vec3 final = VEC3_ZERO;
+          const struct Vec2 uv =
+              MAKE_VEC2((b0 * uv0.X + b1 * uv1.X + b2 * uv2.X) * wInterp,
+                        (b0 * uv0.Y + b1 * uv1.Y + b2 * uv2.Y) * wInterp);
+          const struct Color texel = Texture != nullptr
+                                         ? textureSample(Texture, uv)
+                                         : (struct Color){0, 0, 0};
+          const struct Vec3 baseLinear =
+              Texture != nullptr
+                  ? MAKE_VEC3(texel.R / 255.0f, texel.G / 255.0f,
+                              texel.B / 255.0f)
+                  : vec3Scale(MAKE_VEC3(b0 * baseColor0.X + b1 * baseColor1.X +
+                                            b2 * baseColor2.X,
+                                        b0 * baseColor0.Y + b1 * baseColor1.Y +
+                                            b2 * baseColor2.Y,
+                                        b0 * baseColor0.Z + b1 * baseColor1.Z +
+                                            b2 * baseColor2.Z),
+                              wInterp);
+
+          struct Vec3 final = baseLinear;
 
           if (hasPixelLights) {
             const struct Vec3 worldPos = vec3Scale(
@@ -360,28 +378,9 @@ void drawTriangle(const struct Framebuffer* Framebuffer, const struct Vec3 V0,
                                     b0 * worldNormal0.Z + b1 * worldNormal2.Z +
                                         b2 * worldNormal3.Z),
                           wInterp));
-            const struct Vec2 uv =
-                MAKE_VEC2((b0 * uv0.X + b1 * uv1.X + b2 * uv2.X) * wInterp,
-                          (b0 * uv0.Y + b1 * uv1.Y + b2 * uv2.Y) * wInterp);
-            const struct Color texel = Texture != nullptr
-                                           ? textureSample(Texture, uv)
-                                           : (struct Color){0, 0, 0};
-            const struct Vec3 baseLinear =
-                Texture != nullptr
-                    ? MAKE_VEC3(texel.R / 255.0f, texel.G / 255.0f,
-                                texel.B / 255.0f)
-                    : vec3Scale(
-                          MAKE_VEC3(b0 * baseColor0.X + b1 * baseColor1.X +
-                                        b2 * baseColor2.X,
-                                    b0 * baseColor0.Y + b1 * baseColor1.Y +
-                                        b2 * baseColor2.Y,
-                                    b0 * baseColor0.Z + b1 * baseColor1.Z +
-                                        b2 * baseColor2.Z),
-                          wInterp);
 
-            final = vec3Add(final,
-                            evaluateLights(PixelLights, worldPos, worldNormal,
-                                           baseLinear, CameraPosition));
+            final = evaluateLights(PixelLights, worldPos, worldNormal,
+                                   baseLinear, CameraPosition);
           }
 
           Framebuffer->DepthBuffer[pixelIndex] = depth;
@@ -425,7 +424,7 @@ static int32_t clipTriangleNearPlane(const struct ClippedVertex In[3],
 
 void drawModel(const struct Framebuffer* Framebuffer, const struct Model* Model,
                const struct Mat4 ModelMatrix, const struct Mat4 MvpMatrix,
-               const struct Texture* Texture,
+               const struct Texture* Texture, const bool Lit,
                const struct LightBuffer* const PixelLights,
                const struct Vec3 CameraPosition) {
   for (size_t i = 0; i < Model->IndexCount; i += 3) {
@@ -515,7 +514,7 @@ void drawModel(const struct Framebuffer* Framebuffer, const struct Model* Model,
                    out[k + 1].WorldPos, out[0].WorldNormal, out[k].WorldNormal,
                    out[k + 1].WorldNormal, out[0].BaseLinear, out[k].BaseLinear,
                    out[k + 1].BaseLinear, out[0].Uv, out[k].Uv, out[k + 1].Uv,
-                   Texture, PixelLights, CameraPosition);
+                   Texture, Lit ? PixelLights : nullptr, CameraPosition);
     }
   }
 }

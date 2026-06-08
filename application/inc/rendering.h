@@ -47,7 +47,7 @@ void drawTriangle(const struct Framebuffer* Framebuffer, struct Vec3 V0,
                   struct Vec3 CameraPosition);
 void drawModel(const struct Framebuffer* Framebuffer, const struct Model* Model,
                struct Mat4 ModelMatrix, struct Mat4 MvpMatrix,
-               const struct Texture* Texture,
+               const struct Texture* Texture, bool Lit,
                const struct LightBuffer* PixelLights,
                struct Vec3 CameraPosition);
 void drawModelMesh(const struct Framebuffer* Framebuffer,

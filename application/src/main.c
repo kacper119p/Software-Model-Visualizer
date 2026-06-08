@@ -70,12 +70,13 @@ static void setupLights(struct LightBuffer* const PixelLights) {
 
 static void drawAt(const struct Framebuffer* const Framebuffer,
                    const struct Model* const Model, const struct Vec3 Position,
-                   const struct Mat4 VpMatrix, const struct Texture* const Texture,
+                   const struct Mat4 VpMatrix,
+                   const struct Texture* const Texture, const bool Lit,
                    const struct LightBuffer* const PixelLights,
                    const struct Vec3 CameraPosition) {
   const struct Mat4 modelMatrix = makeMat4Translation(Position);
   drawModel(Framebuffer, Model, modelMatrix, mat4Mul(VpMatrix, modelMatrix),
-            Texture, PixelLights, CameraPosition);
+            Texture, Lit, PixelLights, CameraPosition);
 }
 
 static void setWhite(const struct Model* const Model) {
@@ -90,7 +91,6 @@ static void renderFrame(const struct Framebuffer* const Framebuffer,
                         const struct Model* const TorusKnot, const float Time,
                         const struct Texture* const TexSphere,
                         const struct Texture* const TexTorus,
-                        const struct Texture* const TexTorusKnot,
                         const struct LightBuffer* const PixelLights) {
   clearColorBuffer(Framebuffer, 0x00000000);
   clearDepthBuffer(Framebuffer, 1.0f);
@@ -106,19 +106,19 @@ static void renderFrame(const struct Framebuffer* const Framebuffer,
 
   constexpr float r = 3.0f;
   drawAt(Framebuffer, Sphere, MAKE_VEC3(r * sinf(0.0f), 0.0f, r * cosf(0.0f)),
-         vp, TexSphere, PixelLights, eye);
-  drawAt(Framebuffer, Torus,
-         MAKE_VEC3(r * sinf(120.0f * DegToRad), 0.0f,
-                   r * cosf(120.0f * DegToRad)),
-         vp, TexTorus, PixelLights, eye);
-  drawAt(Framebuffer, TorusKnot,
-         MAKE_VEC3(r * sinf(240.0f * DegToRad), 0.0f,
-                   r * cosf(240.0f * DegToRad)),
-         vp, TexTorusKnot, PixelLights, eye);
+         vp, TexSphere, true, PixelLights, eye);
+  drawAt(
+      Framebuffer, Torus,
+      MAKE_VEC3(r * sinf(120.0f * DegToRad), 0.0f, r * cosf(120.0f * DegToRad)),
+      vp, TexTorus, true, PixelLights, eye);
+  drawAt(
+      Framebuffer, TorusKnot,
+      MAKE_VEC3(r * sinf(240.0f * DegToRad), 0.0f, r * cosf(240.0f * DegToRad)),
+      vp, TexSphere, false, PixelLights, eye);
 }
 
 int main(const int argc, const char* const argv[]) {
-  if (argc != 4) {
+  if (argc != 3) {
     return EXIT_FAILURE;
   }
 
@@ -138,13 +138,10 @@ int main(const int argc, const char* const argv[]) {
 
   struct Texture texSphere = {0};
   struct Texture texTorus = {0};
-  struct Texture texTorusKnot = {0};
   if (loadTexture(argv[1], &texSphere) != LOAD_TEXTURE_RESULT_SUCCESS ||
-      loadTexture(argv[2], &texTorus) != LOAD_TEXTURE_RESULT_SUCCESS ||
-      loadTexture(argv[3], &texTorusKnot) != LOAD_TEXTURE_RESULT_SUCCESS) {
+      loadTexture(argv[2], &texTorus) != LOAD_TEXTURE_RESULT_SUCCESS) {
     destroyTexture(&texSphere);
     destroyTexture(&texTorus);
-    destroyTexture(&texTorusKnot);
     destroyModel(&sphere);
     destroyModel(&torus);
     destroyModel(&torusKnot);
@@ -165,7 +162,7 @@ int main(const int argc, const char* const argv[]) {
     const float currentTime = getElapsedTime(&timeQuery);
     peekWindowMessages(&window);
     renderFrame(&window.Framebuffer, &sphere, &torus, &torusKnot, currentTime,
-                &texSphere, &texTorus, &texTorusKnot, &pixelLightsBuffer);
+                &texSphere, &texTorus, &pixelLightsBuffer);
     presentWindow(&window);
   }
 
@@ -174,7 +171,6 @@ int main(const int argc, const char* const argv[]) {
   destroyModel(&torusKnot);
   destroyTexture(&texSphere);
   destroyTexture(&texTorus);
-  destroyTexture(&texTorusKnot);
   destroyWindow(&window);
   lightBufferDestroy(&pixelLightsBuffer);
   return EXIT_SUCCESS;
